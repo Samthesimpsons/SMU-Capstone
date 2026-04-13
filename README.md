@@ -752,9 +752,26 @@ uv sync
 uv run poe setup
 ```
 
+3. Activate the virtual environment, then install graphify:
+
+```sh
+source .venv/bin/activate
+pip install graphifyy
+```
+
+4. (Optional) If using [Claude Code](https://claude.ai/claude-code), install the graphify Claude integration:
+
+```sh
+graphify claude install
+```
+
 ### Git Hooks
 
-[Lefthook](https://github.com/evilmartians/lefthook) manages the pre-commit hook. After running `uv run poe setup` once, every `git commit` will automatically run lint, format, and typecheck. The commit is aborted if any check fails.
+[Lefthook](https://github.com/evilmartians/lefthook) manages all git hooks:
+
+- **Pre-commit**: runs lint, format, and typecheck. The commit is aborted if any check fails.
+- **Post-commit**: rebuilds the graphify knowledge graph for changed code files.
+- **Post-checkout**: rebuilds the graphify knowledge graph when switching branches.
 
 ## References
 
