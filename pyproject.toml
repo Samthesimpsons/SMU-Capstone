@@ -13,7 +13,7 @@ dependencies = [
     "python-dateutil>=2.9.0.post0",
     "ray[tune]==2.54.1",
     "scikit-learn>=1.8.0",
-    "torch>=2.11.0",
+    "torch==2.11.0",
     "torch-geometric>=2.7.0",
 ]
 
@@ -30,6 +30,14 @@ dev = [
     "ruff>=0.15.8",
     "ty>=0.0.27",
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu129" }
 
 [tool.poe.tasks]
 lint = { cmd = "uv run ruff check src/ tests/", help = "Lint source and test files with ruff" }

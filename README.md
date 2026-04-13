@@ -10,7 +10,8 @@ A sequential Transformer-based recommender for the FAR-Trans dataset that models
 4. [Proposed Approach](#proposed-approach)
 5. [Source Code Architecture](#source-code-architecture)
 6. [Working with this Repository](#working-with-this-repository)
-7. [References](#references)
+7. [GPU Cluster](#gpu-cluster)
+8. [References](#references)
 
 
 ## Paper Summary: FAR-Trans
@@ -772,6 +773,97 @@ graphify claude install
 - **Pre-commit**: runs lint, format, and typecheck. The commit is aborted if any check fails.
 - **Post-commit**: rebuilds the graphify knowledge graph for changed code files.
 - **Post-checkout**: rebuilds the graphify knowledge graph when switching branches.
+
+## GPU Cluster
+
+### Initial Setup
+
+1. Connect via **GlobalVPN** to reach the SMU network.
+2. SSH into the cluster: `ssh samuel.sim.2024@origami.smu.edu.sg`
+   - A bash alias `gpu` is configured locally to connect via `sshpass`.
+
+### Account Details
+
+```
+Account name                    : msc
+Partition                       : msc
+QOS                             : studentqos
+Scratch directory               : /common/scratch/users/s/samuel.sim.2024/
+Home directory quota            : 120GB
+Scratch file quota              : 100,000 files
+```
+
+#### Resource Limits (studentqos)
+
+| Resource              | Limit       |
+|-----------------------|-------------|
+| Max running jobs      | 2           |
+| Max submitted jobs    | 4           |
+| CPUs per job          | 4           |
+| GPUs per job          | 1           |
+| RAM per job           | 32 GB       |
+| Max job time          | 5 days      |
+
+### File Transfers (SCP)
+
+Run these from your **local** machine.
+
+```bash
+# Local file to cluster
+scp /path/to/file samuel.sim.2024@origami.smu.edu.sg:~/path/to/destination
+
+# Local folder to cluster
+scp -r /path/to/folder samuel.sim.2024@origami.smu.edu.sg:~/path/to/destination
+
+# Cluster file to local
+scp samuel.sim.2024@origami.smu.edu.sg:~/path/to/file /path/to/destination
+
+# Cluster folder to local
+scp -r samuel.sim.2024@origami.smu.edu.sg:~/path/to/folder /path/to/destination
+```
+
+### Job Submission
+
+#### Shell Script Template
+
+The sbatch template is at [`scripts/far-tuning.sh`](scripts/far-tuning.sh), pre-configured with the `msc` account details. To create a new job script, copy it and update:
+
+- `--job-name` : a descriptive name for the job
+- `--time` : wall-clock limit (format: `DD-HH:MM:SS`)
+- `--mem` : memory allocation (up to 32 GB)
+- The `srun` command at the bottom with your actual script path
+
+#### Submitting
+
+```bash
+chmod +x job.sh
+sbatch job.sh
+```
+
+An output log will appear in the working directory as `<username>.<jobid>.out`.
+
+Email notifications are sent when the job starts, completes, or fails.
+
+### GPU Selection
+
+Use constraints to request specific GPU types:
+
+```bash
+srun -p researchlong -c 4 --mem=8gb --gres=gpu:1 --constraint="h100|h100nvl" nvidia-smi
+```
+
+### GPU Monitoring
+
+Add `srun whichgpu` before your main workload in the batch script to log which GPU and compute node you were assigned. Then check utilization on the [Grafana dashboard](https://green.smu.edu.sg/gpustats) (requires SMU network/VPN), selecting the matching node and GPU number.
+
+### Useful Commands
+
+```bash
+myinfo                  # Account details, quotas, and partition info
+myqueue                 # Status of your current jobs
+myjob <jobid>           # Detailed info on a running/recent job (last 5 min)
+mypastjob <days>        # Job history for the past N days (max 30)
+```
 
 ## References
 
