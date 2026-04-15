@@ -49,7 +49,7 @@ from src.pipeline.preprocessing import (
 )
 from src.pipeline.runner import generate_recommendations
 
-PrimaryMetric = Literal["ndcg", "roi"]
+PrimaryMetric = Literal["ndcg", "roi", "recall"]
 
 
 @dataclass(frozen=True)
@@ -85,15 +85,16 @@ class ModelTuningSpec:
 def _evaluate_on_validation_splits(
     model: Recommender,
     context: ValidationContext,
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
     """Train and evaluate a model across validation splits.
 
-    Returns (average_ndcg, average_roi) across all validation splits.
+    Returns (average_ndcg, average_roi, average_recall) across all validation splits.
     """
     needs_sequences = bool(context.validation_sequences)
 
     ndcg_scores: list[float] = []
     roi_scores: list[float] = []
+    recall_scores: list[float] = []
 
     for index, split in enumerate(context.validation_splits):
         train_kwargs: dict[str, object] = {"device": context.device}
@@ -109,10 +110,12 @@ def _evaluate_on_validation_splits(
         )
         ndcg_scores.append(result.ndcg_at_k)
         roi_scores.append(result.roi_at_k)
+        recall_scores.append(result.recall_at_k)
 
     average_ndcg = sum(ndcg_scores) / len(ndcg_scores) if ndcg_scores else 0.0
     average_roi = sum(roi_scores) / len(roi_scores) if roi_scores else 0.0
-    return average_ndcg, average_roi
+    average_recall = sum(recall_scores) / len(recall_scores) if recall_scores else 0.0
+    return average_ndcg, average_roi, average_recall
 
 
 def _build_model(
@@ -278,11 +281,25 @@ def _materialize_config(
     return spec.config_class(**hyperparameters)
 
 
+_PRIMARY_METRIC_TO_KEY: dict[PrimaryMetric, str] = {
+    "ndcg": "average_ndcg",
+    "roi": "average_roi",
+    "recall": "average_recall",
+}
+
+
 def _metric_value(
-    primary_metric: PrimaryMetric, average_ndcg: float, average_roi: float
+    primary_metric: PrimaryMetric,
+    average_ndcg: float,
+    average_roi: float,
+    average_recall: float,
 ) -> float:
     """Pick the aggregate metric used to rank trials for a given spec."""
-    return average_roi if primary_metric == "roi" else average_ndcg
+    if primary_metric == "roi":
+        return average_roi
+    if primary_metric == "recall":
+        return average_recall
+    return average_ndcg
 
 
 def tune_model(
@@ -298,17 +315,18 @@ def tune_model(
         resolved_context: ValidationContext = ray.get(context_ref)
         config = _materialize_config(spec, hyperparameters)
         model = _build_model(spec, config, resolved_context)
-        average_ndcg, average_roi = _evaluate_on_validation_splits(
+        average_ndcg, average_roi, average_recall = _evaluate_on_validation_splits(
             model, resolved_context
         )
         tune.report(
             {
                 "average_ndcg": average_ndcg,
                 "average_roi": average_roi,
+                "average_recall": average_recall,
             }
         )
 
-    metric_key = "average_roi" if spec.primary_metric == "roi" else "average_ndcg"
+    metric_key = _PRIMARY_METRIC_TO_KEY[spec.primary_metric]
 
     # Random Forest is sklearn (CPU-only), so never claim a GPU slot for it even
     # when --device cuda is passed; otherwise it blocks the single GPU unnecessarily
@@ -346,6 +364,7 @@ def tune_model(
     print(f"\n{spec.model_name} grid search complete:")
     print(f"  Best ROI: {best_metrics['average_roi']:.6f}")
     print(f"  Best nDCG: {best_metrics['average_ndcg']:.4f}")
+    print(f"  Best Recall: {best_metrics['average_recall']:.4f}")
     print(f"  Best config: {best_hyperparameters}")
 
     return _materialize_config(spec, dict(best_hyperparameters)), results
@@ -364,6 +383,7 @@ def _save_grid_search_results(
         row: dict[str, Any] = dict(result.config)
         row["average_ndcg"] = result.metrics.get("average_ndcg")
         row["average_roi"] = result.metrics.get("average_roi")
+        row["average_recall"] = result.metrics.get("average_recall")
         rows.append(row)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -121,6 +121,23 @@ The majority of investors have low investment capacity (< €30k), consistent wi
 
 **Data Loading:** The FAR-Trans dataset is loaded and explored in [`notebooks/data_loading.ipynb`](notebooks/data_loading.ipynb). This notebook handles download, extraction, and initial data inspection.
 
+#### Sequence Length Distribution
+
+Sequential recommenders (SASRec, TiSASRec, HybridDualHead) attend over each user's chronological buy history up to `max_sequence_length`. Their ability to learn temporal structure is therefore capped by how many transactions each user actually has. The module `src/data/sequence_analysis.py` computes this distribution directly from the raw transactions file and writes two artifacts to `outputs/analysis/sequence_lengths/`:
+
+- `summary.json` : min / max / mean / median / percentiles (25, 75, 90, 95, 99) of per-user sequence length, plus cumulative share of users at length caps 1, 3, 5, 10, 20, 50.
+- `histogram.png` : binned histogram (x-axis clipped at 50 by default to keep the body of the distribution readable despite the long tail).
+
+Run it with:
+
+```sh
+uv run poe analyze-sequences
+# or with a custom x-axis cap:
+uv run python -m src.data.sequence_analysis --bin-cap 100
+```
+
+The headline observation from this analysis (see also "Key Observations About the Data" above) is that a large majority of FAR-Trans users have very short buy histories. This matters because the sequential baselines are configured with `max_sequence_length=50`: for most users, the attention layer is operating on a near-empty sequence with padding, and the model effectively degenerates toward recommending based on the last 1–2 items. The distribution is a direct diagnostic for interpreting the sequential models' relative underperformance against LightGCN on nDCG@10 / Recall@10 — short sequences provide insufficient context for self-attention to extract signal, independent of hyperparameter choice.
+
 #### Cleaning and Pre-processing
 
 **Note:** All cleaning and pre-processing steps listed below have already been applied by the paper's authors to the FAR-Trans dataset. The data is production-ready; no additional cleaning is required. See the [original dataset documentation](https://researchdata.gla.ac.uk/1658/).
@@ -466,6 +483,7 @@ src/
         loading.py              # Load raw CSVs (FAR-Trans: drop zero-price assets, dedup)
         splitting.py            # 69 temporal train/test splits with cumulative construction
         sequences.py            # Chronological user purchase sequences, time bucketing
+        sequence_analysis.py    # Sequence-length distribution analysis (CLI: poe analyze-sequences)
     features/
         technical_indicators.py # 30-column indicator set (INDICATOR_COLUMNS) with 5-day MA smoothing
     models/
@@ -477,7 +495,7 @@ src/
         tisasrec.py             # Time-interval-aware SASRec extension
         hybrid.py               # Dual-head model: interest + profitability
     evaluation/
-        metrics.py              # nDCG@k and ROI@k computation
+        metrics.py              # nDCG@k, ROI@k, and Recall@k computation
     pipeline/
         preprocessing.py        # Load raw data, generate splits and sequences, save to disk
         runner.py               # Train and evaluate models via MODEL_REGISTRY
@@ -648,13 +666,26 @@ Recommender hierarchy:
 
 - **nDCG@k**: binary relevance (1 if the user acquires the asset in the 6-month test window, 0 otherwise); IDCG is capped at `min(k, num_relevant)`; users with no relevant items contribute 0. Matches `metrics/pure_ndcg.py` from the [FAR-Trans reference](https://github.com/JavierSanzCruza/far-trans) (base-invariant: ours uses `log2`, theirs uses natural log, the ratio is identical).
 - **ROI@k**: geometric monthly return `(1 + total_return)^(30/days) - 1` per recommended asset, averaged across the top-k list. Missing-price recommendations are imputed as 0 return (not skipped), matching `metrics/kpi_monthly_evaluation_metric.py` and `metrics/kpi_evaluation_metric.py:30-32` in the same repo. Calendar-day horizon between recommendation date and test-end date.
+- **Recall@k**: fraction of the user's relevant assets (buys in the 6-month test window, filtered to eligible assets) that appear in the top-k. Users with no relevant items contribute 0 (same convention as nDCG). Recall@k is the standard complement to nDCG@k in sequential recommendation literature (e.g. SASRec, TiSASRec): nDCG@k captures ranking quality, Recall@k captures coverage. It is reported for every model (not just the sequential ones) so all five baselines can be compared on the same axis.
 - **`build_price_lookup`**: finds the closest available price on or before the time point and test end for each asset. Since all split dates are snapped to actual trading days, the `<=` fallback collapses to exact-date lookup.
-- **`evaluate_model_on_split`**: iterates `split.eligible_customer_ids` (users in both train and test), averages both metrics across users.
-- Both metrics are averaged across all eligible users and then across all 69 temporal splits.
+- **`evaluate_model_on_split`**: iterates `split.eligible_customer_ids` (users in both train and test), averages all three metrics across users.
+- All three metrics are averaged across all eligible users and then across all 69 temporal splits. The tuning pipeline selects the "best" trial by a single `primary_metric` (one of `"ndcg"`, `"roi"`, `"recall"` per `ModelTuningSpec`) but always logs all three in the Ray Tune CSV output so trade-offs are visible.
 
 ### Hyperparameter Tuning
 
 The tuning pipeline (`pipeline/tuning.py`) uses Ray Tune's native grid search via `tune.grid_search(...)`. Each model declares a `ModelTuningSpec` with a small grid centered on each model's reference configuration so that the reference hyperparameters are always one of the trial points. Evaluation is on 3 validation splits at fixed dates (2019-04-01, 2019-10-01, 2020-01-31), snapped to the nearest trading day. Only the first validation date (2019-04-01) precedes the first evaluation split (2019-08-01); the other two fall within the evaluation period. Because models are retrained from scratch for every evaluation split, the validation step selects hyperparameters but does not leak trained weights into Table 2. Best configs are saved to a timestamped JSON directory under `outputs/configs/` and loaded by the runner via `--config`.
+
+#### Validation/Evaluation Window Overlap (Known Caveat)
+
+Two of the three validation splits (2019-10-01 and 2020-01-31) have 6-month test windows that overlap in calendar time with the test windows of early evaluation splits (e.g. validation split 2020-01-31 tests on Feb–Jul 2020 transactions, which are substantially the same rows scored by evaluation split 014 at time_point 2020-01-27). Since hyperparameters are selected by maximising averaged nDCG/ROI on these validation splits, configurations that fit those specific early-2020 transactions are implicitly favoured when the same transactions are later scored in Table 2. **This is hyperparameter-selection bias, not train-test contamination**: the model weights themselves are always retrained from scratch per evaluation split, but the choice of *which* weights to train (i.e. the grid point) is informed by data that partially appears in the benchmark.
+
+We accept this trade-off pragmatically rather than enforce strict temporal disjointness, for three reasons:
+
+1. **Consistency with the FAR-Trans benchmark.** The reference paper uses the same validation-dates-inside-evaluation-range pattern, so our numbers remain comparable to Table 2 in the paper.
+2. **Training cutoffs still differ.** A validation split's training set is strictly smaller than an evaluation split's training set at the same time point, so the two tasks are not identical even when their test windows overlap; the bias is real but bounded.
+3. **Regime coverage would suffer under strict disjointness.** Moving all three validation time_points before 2019-02-01 (so their 6-month test windows close before the first evaluation point on 2019-08-01) would push tuning onto ~1 year of early FAR-Trans data where transaction density is lower and market regimes are narrower. The resulting hyperparameter choices would generalise worse to the 2020–2022 evaluation period than the current setup, even though they would be formally cleaner.
+
+Readers should interpret reported nDCG@10 and ROI@10 with a small upward bias in mind. A fully held-out alternative (option 1 above, or trimming the first ~15 evaluation splits whose test windows overlap with validation) can be added as a future robustness check without changing the tuning grids.
 
 #### Trial Concurrency and Resource Allocation
 
@@ -698,6 +729,7 @@ The single-GPU cluster allocation (1 GPU, 4 CPUs, 16 GB RAM on the SMU `msc` par
 
 ```sh
 uv run poe preprocess              # Step 0: generate all splits to data/splits/
+uv run poe analyze-sequences       # (optional) sequence-length distribution analysis
 uv run poe tune --models random_forest light_gcn   # Step 1: hyperparameter search
 uv run poe run --config outputs/configs/.../best_hyperparameters.json  # Step 2: evaluate
 uv run poe run --models random_forest light_gcn    # or skip tuning, use paper defaults

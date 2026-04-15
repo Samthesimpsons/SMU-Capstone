@@ -2,7 +2,7 @@
 
 The runner replicates the FAR-Trans benchmark: it iterates over the 61
 preprocessed evaluation splits, trains each requested model from scratch on
-each split, and aggregates nDCG@10 / ROI@10 across splits.
+each split, and aggregates nDCG@10 / ROI@10 / Recall@10 across splits.
 
 Adding a new model is one entry in `src/models/protocol.MODEL_REGISTRY` plus
 the model implementation. The runner then picks it up automatically as long
@@ -86,6 +86,7 @@ def run_experiment(
         print(
             f"  nDCG@{k}: {result_with_name.ndcg_at_k:.4f}"
             f"  ROI@{k}: {result_with_name.roi_at_k:.6f}"
+            f"  Recall@{k}: {result_with_name.recall_at_k:.4f}"
         )
 
         results.append(result_with_name)
@@ -101,10 +102,12 @@ def print_summary(results: list[EvaluationResult]) -> None:
     model_name = results[0].model_name
     average_ndcg = sum(r.ndcg_at_k for r in results) / len(results)
     average_roi = sum(r.roi_at_k for r in results) / len(results)
+    average_recall = sum(r.recall_at_k for r in results) / len(results)
 
     print(f"\n{model_name} Summary:")
-    print(f"  Average nDCG@k: {average_ndcg:.4f}")
-    print(f"  Average ROI@k:  {average_roi:.6f}")
+    print(f"  Average nDCG@k:   {average_ndcg:.4f}")
+    print(f"  Average ROI@k:    {average_roi:.6f}")
+    print(f"  Average Recall@k: {average_recall:.4f}")
 
 
 def save_evaluation_results(
@@ -128,18 +131,21 @@ def save_evaluation_results(
             "time_point": r.time_point.isoformat(),
             "ndcg_at_k": r.ndcg_at_k,
             "roi_at_k": r.roi_at_k,
+            "recall_at_k": r.recall_at_k,
         }
         for r in results
     ]
 
     average_ndcg = sum(r.ndcg_at_k for r in results) / len(results)
     average_roi = sum(r.roi_at_k for r in results) / len(results)
+    average_recall = sum(r.recall_at_k for r in results) / len(results)
     rows.append(
         {
             "split_index": -1,
             "time_point": "average",
             "ndcg_at_k": average_ndcg,
             "roi_at_k": average_roi,
+            "recall_at_k": average_recall,
         }
     )
 
@@ -269,18 +275,27 @@ def _print_comparison_table(
     k: int,
 ) -> None:
     """Print a comparison table of average metrics across all models."""
-    print(f"\n{'=' * 60}")
-    print(f"{'Model':<25} {'nDCG@' + str(k):<15} {'ROI@' + str(k):<15}")
-    print(f"{'-' * 60}")
+    header = (
+        f"{'Model':<25} {'nDCG@' + str(k):<12} {'ROI@' + str(k):<15} "
+        f"{'Recall@' + str(k):<12}"
+    )
+    width = len(header)
+    print(f"\n{'=' * width}")
+    print(header)
+    print(f"{'-' * width}")
 
     for model_name, results in all_results.items():
         if not results:
             continue
         average_ndcg = sum(r.ndcg_at_k for r in results) / len(results)
         average_roi = sum(r.roi_at_k for r in results) / len(results)
-        print(f"{model_name:<25} {average_ndcg:<15.4f} {average_roi:<15.6f}")
+        average_recall = sum(r.recall_at_k for r in results) / len(results)
+        print(
+            f"{model_name:<25} {average_ndcg:<12.4f} {average_roi:<15.6f} "
+            f"{average_recall:<12.4f}"
+        )
 
-    print(f"{'=' * 60}")
+    print(f"{'=' * width}")
 
 
 if __name__ == "__main__":

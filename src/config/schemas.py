@@ -37,3 +37,4 @@ class EvaluationResult(BaseModel):
     model_name: str
     ndcg_at_k: float
     roi_at_k: float
+    recall_at_k: float

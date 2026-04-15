@@ -1,8 +1,14 @@
-"""Evaluation metrics for recommendation quality: nDCG@k and ROI@k.
+"""Evaluation metrics for recommendation quality: nDCG@k, ROI@k, Recall@k.
 
 ROI@k uses the geometric monthly return formula from the FAR-Trans reference:
   monthly_return = pow(1 + total_return, 30 / days) - 1
 where days is the calendar days between time_point and test_end.
+
+Recall@k is the fraction of a user's relevant items (assets bought in the
+test window) that appear in the recommended top-k. It is a standard
+complement to nDCG@k in sequential recommendation literature: nDCG@k
+captures ranking quality, Recall@k captures coverage. Both use the same
+per-user relevant-asset set.
 """
 
 import math
@@ -38,6 +44,25 @@ def compute_ndcg_at_k(
         return 0.0
 
     return dcg / idcg
+
+
+def compute_recall_at_k(
+    ranked_recommendations: list[str],
+    relevant_assets: set[str],
+    k: int = 10,
+) -> float:
+    """Compute Recall@k for a single user's recommendation list.
+
+    Recall@k = |relevant ∩ top-k| / |relevant|. Users with no relevant
+    items contribute 0.0 (same convention as compute_ndcg_at_k so the
+    per-user denominators are aligned when averaging across users).
+    """
+    if not relevant_assets:
+        return 0.0
+
+    top_k = set(ranked_recommendations[:k])
+    hits = len(top_k & relevant_assets)
+    return hits / len(relevant_assets)
 
 
 def compute_roi_at_k(
@@ -126,7 +151,7 @@ def evaluate_model_on_split(
 ) -> EvaluationResult:
     """Evaluate a model's recommendations on one temporal split.
 
-    Averages nDCG@k and ROI@k across all eligible users.
+    Averages nDCG@k, ROI@k, and Recall@k across all eligible users.
     """
     price_lookup = build_price_lookup(
         close_prices, split.time_point, split.test_end, split.eligible_asset_ids
@@ -142,6 +167,7 @@ def evaluate_model_on_split(
     eligible_assets = set(split.eligible_asset_ids)
     ndcg_scores: list[float] = []
     roi_scores: list[float] = []
+    recall_scores: list[float] = []
 
     for customer_id in split.eligible_customer_ids:
         customer_recommendations = recommendations.get(customer_id, [])
@@ -155,9 +181,13 @@ def evaluate_model_on_split(
         roi_scores.append(
             compute_roi_at_k(customer_recommendations, price_lookup, days_in_period, k)
         )
+        recall_scores.append(
+            compute_recall_at_k(customer_recommendations, relevant_assets, k)
+        )
 
     average_ndcg = sum(ndcg_scores) / len(ndcg_scores) if ndcg_scores else 0.0
     average_roi = sum(roi_scores) / len(roi_scores) if roi_scores else 0.0
+    average_recall = sum(recall_scores) / len(recall_scores) if recall_scores else 0.0
 
     return EvaluationResult(
         split_index=split.split_index,
@@ -165,4 +195,5 @@ def evaluate_model_on_split(
         model_name="",
         ndcg_at_k=average_ndcg,
         roi_at_k=average_roi,
+        recall_at_k=average_recall,
     )
