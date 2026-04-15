@@ -41,7 +41,12 @@ coverage.xml
 htmlcov/
 
 # Pipeline outputs (configs, models, results)
-outputs/
+outputs/*
+!outputs/
+!outputs/configs/
+!outputs/results/
+!outputs/*.out
+
 
 # IDEs and editors
 .idea/
