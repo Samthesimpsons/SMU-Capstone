@@ -1,22 +1,15 @@
-"""Evaluation metrics for recommendation quality: nDCG@k, ROI@k, Recall@k.
-
-ROI@k uses the geometric monthly return formula from the FAR-Trans reference:
-  monthly_return = pow(1 + total_return, 30 / days) - 1
-where days is the calendar days between time_point and test_end.
-
-Recall@k is the fraction of a user's relevant items (assets bought in the
-test window) that appear in the recommended top-k. It is a standard
-complement to nDCG@k in sequential recommendation literature: nDCG@k
-captures ranking quality, Recall@k captures coverage. Both use the same
-per-user relevant-asset set.
-"""
+"""nDCG@k, ROI@k, Recall@k, and PC@k computation."""
 
 import math
 from datetime import date
 
 import pandas as pd
 
-from src.config.schemas import EvaluationResult, TemporalSplitData
+from src.config.schemas import CustomerProfile, EvaluationResult, TemporalSplitData
+from src.profile_coherence.discordance import (
+    compute_pairwise_discordance,
+    is_profile_coherent,
+)
 
 CALENDAR_DAYS_PER_MONTH = 30
 
@@ -51,12 +44,7 @@ def compute_recall_at_k(
     relevant_assets: set[str],
     k: int = 10,
 ) -> float:
-    """Compute Recall@k for a single user's recommendation list.
-
-    Recall@k = |relevant ∩ top-k| / |relevant|. Users with no relevant
-    items contribute 0.0 (same convention as compute_ndcg_at_k so the
-    per-user denominators are aligned when averaging across users).
-    """
+    """Compute Recall@k for a single user's recommendation list."""
     if not relevant_assets:
         return 0.0
 
@@ -73,13 +61,10 @@ def compute_roi_at_k(
 ) -> float:
     """Compute ROI@k: average geometric monthly return of top-k recommended assets.
 
-    price_lookup maps ISIN to (price_at_time_point, price_at_test_end).
-    Monthly return per asset = pow(1 + total_return, 30 / days) - 1.
-
-    Matches FAR-Trans semantics (`metrics/kpi_evaluation_metric.py:30-32`,
-    `metrics/kpi_monthly_evaluation_metric.py`): recommended assets without a
-    valid price are imputed as a 0% return rather than skipped, so the per-user
-    denominator is the actual number of items in the top-k slice.
+    Recommended assets without a valid price are imputed as a 0% return rather
+    than skipped, matching FAR-Trans semantics in
+    `metrics/kpi_evaluation_metric.py:30-32` and
+    `metrics/kpi_monthly_evaluation_metric.py`.
     """
     top_k = ranked_recommendations[:k]
     if not top_k:
@@ -104,6 +89,40 @@ def compute_roi_at_k(
         monthly_returns.append(0.0)
 
     return sum(monthly_returns) / len(monthly_returns)
+
+
+def compute_profile_coherence_at_k(
+    ranked_recommendations: list[str],
+    customer_band: int | None,
+    asset_risk_classes: dict[str, int],
+    k: int = 10,
+    *,
+    strict: bool = False,
+) -> float:
+    """Compute PC@k for a single user's recommendation list.
+
+    PC@k = (1/k) * |{i in top_k : |b_user - b_asset_i| <= tolerance}|.
+    With `strict=True` the tolerance is 0 (exact band match); otherwise it is 1.
+
+    Returns 0.0 when the user has no declared MiFID band (so this metric only
+    contributes from users with profile signal). Recommendations that point to
+    assets without a known band are treated as discordant.
+    """
+    if customer_band is None:
+        return 0.0
+
+    top_k = ranked_recommendations[:k]
+    if not top_k:
+        return 0.0
+
+    coherent_count = 0
+    for asset_id in top_k:
+        asset_band = asset_risk_classes.get(asset_id)
+        discordance = compute_pairwise_discordance(customer_band, asset_band)
+        if is_profile_coherent(discordance, strict=strict):
+            coherent_count += 1
+
+    return coherent_count / len(top_k)
 
 
 def build_price_lookup(
@@ -147,11 +166,16 @@ def evaluate_model_on_split(
     recommendations: dict[str, list[str]],
     split: TemporalSplitData,
     close_prices: pd.DataFrame,
+    customer_profiles: dict[str, CustomerProfile],
+    asset_risk_classes: dict[str, int],
     k: int = 10,
 ) -> EvaluationResult:
     """Evaluate a model's recommendations on one temporal split.
 
-    Averages nDCG@k, ROI@k, and Recall@k across all eligible users.
+    Averages nDCG@k, ROI@k, Recall@k, and PC@k across all eligible users.
+    PC@k contributions are restricted to users with a declared MiFID band;
+    users without a declared band contribute 0.0 (same convention as nDCG
+    for users with no relevant items, so per-user denominators are aligned).
     """
     price_lookup = build_price_lookup(
         close_prices, split.time_point, split.test_end, split.eligible_asset_ids
@@ -168,12 +192,15 @@ def evaluate_model_on_split(
     ndcg_scores: list[float] = []
     roi_scores: list[float] = []
     recall_scores: list[float] = []
+    pc_scores: list[float] = []
 
     for customer_id in split.eligible_customer_ids:
         customer_recommendations = recommendations.get(customer_id, [])
         relevant_assets = (
             split.test_interactions.get(customer_id, set()) & eligible_assets
         )
+        profile = customer_profiles.get(customer_id)
+        customer_band = profile.risk_band if profile is not None else None
 
         ndcg_scores.append(
             compute_ndcg_at_k(customer_recommendations, relevant_assets, k)
@@ -184,10 +211,16 @@ def evaluate_model_on_split(
         recall_scores.append(
             compute_recall_at_k(customer_recommendations, relevant_assets, k)
         )
+        pc_scores.append(
+            compute_profile_coherence_at_k(
+                customer_recommendations, customer_band, asset_risk_classes, k
+            )
+        )
 
     average_ndcg = sum(ndcg_scores) / len(ndcg_scores) if ndcg_scores else 0.0
     average_roi = sum(roi_scores) / len(roi_scores) if roi_scores else 0.0
     average_recall = sum(recall_scores) / len(recall_scores) if recall_scores else 0.0
+    average_pc = sum(pc_scores) / len(pc_scores) if pc_scores else 0.0
 
     return EvaluationResult(
         split_index=split.split_index,
@@ -196,4 +229,5 @@ def evaluate_model_on_split(
         ndcg_at_k=average_ndcg,
         roi_at_k=average_roi,
         recall_at_k=average_recall,
+        profile_coherence_at_k=average_pc,
     )

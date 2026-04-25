@@ -1,24 +1,30 @@
-# SMU Capstone: Temporal User Modelling for Financial Asset Recommendation
+# SMU Capstone: Profile Coherence as a Diagnostic and Design Lens for Financial Asset Recommendation
 
-A sequential Transformer-based recommender for the FAR-Trans dataset that models temporal dynamics of investor behaviour and combines predicted user interest with asset profitability.
+A measurement framework and a profile-aware extension of LightGCN for the FAR-Trans dataset. The thesis introduces **Profile Coherence at k (PC@k)** as a new evaluation axis, audits how profile-coherent existing FAR baselines actually are, and proposes a minimal **Profile-Coherent LightGCN** that uses regulatory profile signals as both a conditioning input and a learning constraint.
+
+This README is the single source of truth for the project: thesis framing, methodology, code architecture, task roadmap, and expected outputs all live here.
 
 ## Table of Contents
 
 1. [Paper Summary: FAR-Trans](#paper-summary-far-trans)
 2. [Problem Statement](#problem-statement)
-3. [Novelty and Research Contributions](#novelty-and-research-contributions)
-4. [Proposed Approach](#proposed-approach)
-5. [Source Code Architecture](#source-code-architecture)
-6. [Working with this Repository](#working-with-this-repository)
-7. [GPU Cluster](#gpu-cluster)
-8. [References](#references)
-
+3. [Research Questions](#research-questions)
+4. [Dataset Audit Findings](#dataset-audit-findings)
+5. [Novelty and Research Contributions](#novelty-and-research-contributions)
+6. [Proposed Approach](#proposed-approach)
+7. [Source Code Architecture](#source-code-architecture)
+8. [Project Roadmap](#project-roadmap)
+9. [Expected Outputs](#expected-outputs)
+10. [Risks and Mitigations](#risks-and-mitigations)
+11. [Working with this Repository](#working-with-this-repository)
+12. [GPU Cluster](#gpu-cluster)
+13. [References](#references)
 
 ## Paper Summary: FAR-Trans
 
-This section summarises the FAR-Trans paper that forms the foundation of this project. It is intended as my self-contained reference of the entire paper.
+This section summarises the FAR-Trans paper that forms the foundation of this project.
 
-I have also taken the liberty of converting the research paper into `markdown` format from `TeX` so that large language modelling tools can digest its context more easily compared to `pdf` format. The markdown version serves as good grounding context for asking questions about the paper.
+I have also taken the liberty of converting the original paper from `TeX` into `markdown` format so that LLM-based tooling can ingest it as grounding context. The markdown copy lives under `papers/FAR-Trans An Investment Dataset for Financial Asset Recommendation/paper.md`.
 
 ### What is FAR?
 
@@ -39,24 +45,22 @@ FAR systems analyse multiple data sources:
 
 ### Paper Contribution
 
-Most existing FAR models are developed over **proprietary or simulated datasets**, making fair comparison across methods impossible.
-
-The only prior public dataset (ObjectWay, Musto et al. 2014) has 1,172 users but **lacks pricing data and asset identifiers**, which prevents price-based approaches from being tested.
+Most existing FAR models are developed over **proprietary or simulated datasets**, making fair comparison across methods impossible. The only prior public dataset (ObjectWay, Musto et al. 2014) has 1,172 users but **lacks pricing data and asset identifiers**, which prevents price-based approaches from being tested.
 
 **FAR-Trans fills this gap**: the first public dataset for FAR that contains both real asset pricing information and real retail investor transactions. The paper also provides a **benchmark comparison of 11 FAR algorithms** as baselines for future research.
 
 ### Dataset
 
-[FAR-Trans](https://doi.org/10.5525/gla.researchdata.1658) dataset (Sanz-Cruzado et al., 2024): the **first public dataset** for financial asset recommendation containing both pricing information and retail investor transactions. It was collected from a large European financial institution (the National Bank of Greece) and covers January 2018 to November 2022.
+[FAR-Trans](https://doi.org/10.5525/gla.researchdata.1658) (Sanz-Cruzado et al., 2024): the first public dataset for financial asset recommendation containing both pricing information and retail investor transactions, collected from a large European financial institution (the National Bank of Greece) and covering January 2018 to November 2022.
 
 #### What the Dataset Contains
 
 | Component | Description |
 |---|---|
 | **Price time series** | Daily closing prices for 806 financial assets (stocks, bonds, mutual funds) across 38 markets. 703,303 price data points total. |
-| **Investment transactions** | 388,049 buy/sell records from 29,090 retail investors. Each transaction includes: customer ID, asset ID, date, buy/sell flag, number of shares, total value, and channel used. |
-| **Asset metadata** | For each of the 806 assets: asset type (stock, bond, mutual fund), sub-type (e.g., government vs. corporate bond), name, market, sector, and industry. |
-| **Customer profiles** | For each of the 29,090 customers: customer segment, investment risk profile, and investment capacity. All anonymised. |
+| **Investment transactions** | 388,049 buy/sell records from 29,090 retail investors. |
+| **Asset metadata** | Per-asset asset type, sub-type, market, sector, industry. |
+| **Customer profiles** | Per-customer segment, MiFID II risk profile, and investment capacity. |
 
 #### Dataset Statistics at a Glance
 
@@ -74,266 +78,31 @@ The only prior public dataset (ObjectWay, Musto et al. 2014) has 1,172 users but
 | Average return (by customers, whole period) | 22.89% |
 | % customers with profits | 54.56% |
 
-#### Customer Segments
+#### Customer Segments and MiFID Risk Profiles
 
-Customers are classified by the bank into five segments based on their managed assets:
+The two regulatory signals that this thesis treats as load-bearing:
 
-| Segment | Description | Count |
-|---|---|---|
-| **Mass** | < €60,000 in managed assets (investments, deposits, insurance) | 18,610 |
-| **Premium** | > €60,000 in managed assets | 8,906 |
-| **Professional** | Sole proprietorship: individual exercising business activity | 1,327 |
-| **Legal Entity** | Legal entities with bank services | 39 |
-| **Inactive** | Customers without available segment data | 208 |
+- **MiFID II risk profile** (`riskLevel`): four declared bands (`Conservative`, `Income`, `Balanced`, `Aggressive`) plus regression-imputed `Predicted_*` variants for customers who never completed the questionnaire.
+- **Investment capacity** (`investmentCapacity`): four tiers (`CAP_LT30K`, `CAP_30K_80K`, `CAP_80K_300K`, `CAP_GT300K`).
+- **Customer segment** (`customerType`): five segments (`Mass`, `Premium`, `Professional`, `Legal Entity`, `Inactive`).
 
-#### Investment Risk Profiles
-
-Each customer is assigned a risk profile based on a 25-question MiFID II regulatory questionnaire (or estimated via linear regression for customers who haven't completed it):
-
-| Risk Profile | Description |
-|---|---|
-| **Conservative** | Prioritises capital protection. Portfolios: short-term placements, fixed-income securities. |
-| **Income** | Aims for fixed income from bond coupons, dividends, short-term placements. Very low risk. |
-| **Balanced** | Accepts moderate fluctuations. Mix of bonds, stocks. Medium-term capital gains. |
-| **Aggressive** | Targets significant long-term gains. Accepts high risk. |
-
-Most customers have intermediate risk profiles (Income or Balanced).
-
-#### Investment Capacity
-
-Customers are also categorised by how much they can invest:
-
-| Capacity | Range |
-|---|---|
-| Low | < €30,000 |
-| Medium-Low | €30,000 - €80,000 |
-| Medium-High | €80,000 - €300,000 |
-| High | > €300,000 |
-
-The majority of investors have low investment capacity (< €30k), consistent with the Mass customer segment being the largest.
-
-#### Key Observations About the Data
-
-- **Long-tail distribution**: Over 50% of users have 3 or fewer transactions across the entire 2018-2022 period. Only ~650 customers have more than 100 transactions. This is similar to other recommender datasets like MovieLens.
-- **Concentrated asset popularity**: The top 12 assets account for more than 50% of all transactions, yet 75% of traded assets have more than 20 interactions.
-- **Activity spike during COVID**: The highest transaction volume occurred in March 2020, likely driven by the market crash.
-- **Not all assets are traded**: Only 321 of 806 assets with pricing data have associated transactions.
-
-**Data Loading:** The FAR-Trans dataset is loaded and explored in [`notebooks/data_loading.ipynb`](notebooks/data_loading.ipynb). This notebook handles download, extraction, and initial data inspection.
-
-#### Sequence Length Distribution
-
-Sequential recommenders (SASRec, TiSASRec, HybridDualHead) attend over each user's chronological buy history up to `max_sequence_length`. Their ability to learn temporal structure is therefore capped by how many transactions each user actually has. The module `src/data/sequence_analysis.py` computes this distribution directly from the raw transactions file and writes two artifacts to `outputs/analysis/sequence_lengths/`:
-
-- `summary.json` : min / max / mean / median / percentiles (25, 75, 90, 95, 99) of per-user sequence length, plus cumulative share of users at length caps 1, 3, 5, 10, 20, 50.
-- `histogram.png` : binned histogram (x-axis clipped at 50 by default to keep the body of the distribution readable despite the long tail).
-
-Run it with:
-
-```sh
-uv run poe analyze-sequences
-# or with a custom x-axis cap:
-uv run python -m src.data.sequence_analysis --bin-cap 100
-```
-
-The headline observation from this analysis (see also "Key Observations About the Data" above) is that a large majority of FAR-Trans users have very short buy histories. This matters because the sequential baselines are configured with `max_sequence_length=50`: for most users, the attention layer is operating on a near-empty sequence with padding, and the model effectively degenerates toward recommending based on the last 1–2 items. The distribution is a direct diagnostic for interpreting the sequential models' relative underperformance against LightGCN on nDCG@10 / Recall@10 — short sequences provide insufficient context for self-attention to extract signal, independent of hyperparameter choice.
+These three categorical signals form the **profile vector** that conditioning and PC@k rely on.
 
 #### Cleaning and Pre-processing
 
-**Note:** All cleaning and pre-processing steps listed below have already been applied by the paper's authors to the FAR-Trans dataset. The data is production-ready; no additional cleaning is required. See the [original dataset documentation](https://researchdata.gla.ac.uk/1658/).
+All cleaning has been done by the FAR-Trans authors. See the original [dataset documentation](https://researchdata.gla.ac.uk/1658/) for the full schedule of price normalisation, transaction synthesis, and stock-split adjustment.
 
-**Price Cleaning**
+### Existing FAR Methods
 
-| Step | What they did |
-|---|---|
-| **Remove duplicates** | Ensure at most one price per asset per date |
-| **Handle multiple values** | Drop zeros; otherwise keep the value closest to the 5-day trailing price |
-| **Remove untradeable assets** | Drop assets with closing price = 0 at any point (capital exchange required) |
-| **Remove gapped assets** | Drop assets with time gaps > 10 days (too inaccurate to estimate) |
-| **Outlier handling** | If price jumps 10x or drops 90% in one day and reverts the next, replace with 5-day moving average |
-| **Currency normalisation** | Convert all prices to euros |
-| **Stock split adjustment** | Use Yahoo Finance to identify splits; divide pre-split prices by the split ratio |
-| **Fill remaining gaps** | 5-day moving average |
+The FAR-Trans paper benchmarks three families:
 
-**Transaction Cleaning**
+1. **Price-based** (Linear Regression, Random Forest, LightGBM): predict asset profitability from technical indicators. Best at ROI@10 (Random Forest reaches 0.0259 monthly), worst at nDCG@10 (near-random preference accuracy).
+2. **Transaction-based** (Popularity, Matrix Factorisation, LightGCN, ARM, UB-kNN): predict the next purchase from interaction history. Best at nDCG@10 (LightGCN reaches 0.3404), worst at ROI@10 (near-zero realised return).
+3. **Hybrid** (Hybrid-nDCG, Hybrid-regression): two-stage pipelines combining the above. Neither dominates either axis.
 
-| Step | What they did |
-|---|---|
-| **Remove blank customers** | Drop transactions with no associated customer ID |
-| **Stock split adjustment** | Multiply share counts by the split ratio |
-| **Fractional shares (reverse splits)** | Add a sell transaction for the fractional portion (company pays cash for these) |
-| **Backfill missing buys** | If a customer sells shares they never bought in the dataset (acquired pre-2018), add a synthetic buy at the earliest available date (usually Jan 2, 2018) |
-| **Align to pricing dates** | If a transaction date has no pricing data, move to the nearest date that does |
-| **Handle post-series holdings** | If a customer still holds shares after the pricing time series ends, add a sell transaction |
-| **Estimate transaction values** | Number of shares x closing price on the transaction date |
+The headline finding is the **negative correlation between nDCG@10 and ROI@10**: methods that win one objective lose the other. This is the gap the original sequential-modelling thesis tried to close. The revised thesis treats that conflict as a *symptom* of a deeper problem: customer transactions encode systematic behavioural bias, and current FAR systems have no reason to filter that out because the regulatory profile signal is not part of any baseline's loss or evaluation.
 
-### Existing FAR Methods (Related Work)
-
-#### 1st Category: Price-based
-
-- **Not personalised**: same predictions for all customers
-- Regression models (Random Forest, SVM) on technical indicators to estimate asset profitability
-- More complex models explore time series similarities between assets
-- Some incorporate external data: news, social media sentiment
-- Stock ranking selection: pick assets maximising a utility function (e.g. combined predicted returns)
-
-#### 2nd Category: Transaction-based
-
-- Uses past investment transactions as the core data source
-- Assumes investors follow patterns (individually or as groups)
-- **Collaborative filtering**: matrix factorisation, convolutional networks, LightGCN
-- **Customer clustering** (e.g. cluster based on risk aversion)
-- **Content-based**: add asset info like market sector or enterprise life cycle
-- **Apriori Association rule mining**: To be honest, I have not studied this field yet.
-
-#### 3rd Category: Hybrid
-
-- Combines multiple information sources (price + transactions + customer data)
-- Collaborative filtering + multi-criteria decision analysis
-- Gradient boosting reranking of collaborative filtering outputs using portfolio optimisation
-
-### Task Definition
-
-At time *t*, let `I_u(t)` = set of assets customer *u* has bought before *t*.
-
-A FAR system generates a ranking `R_u ⊂ I \ I_u(t)`: a ranked list of assets the user has **NOT** previously interacted with and ordered by predicted suitability.
-
-The paper poses **two research questions**:
-
-| RQ | Question | Evaluation Metric |
-|---|---|---|
-| **RQ1** | Which algorithms are best at identifying **profitable** assets? | ROI@k |
-| **RQ2** | Which algorithms are best at identifying **future customer investments**? | nDCG@k |
-
-### Evaluation Metrics
-
-#### Dataset Split
-
-The paper does not describe its evaluation schedule explicitly, but the authors' code (`run_experiments.py`) runs two separate date ranges: Aug 2019 to Feb 2021 (28 splits) and Sep 2020 to May 2022 (31 splits), totalling 61 evaluation points. At each time point *t*:
-- **Training set**: All pricing data and transactions before *t*.
-- **Test set**: All transactions in the 6-month window (t, t + 6 months).
-- **Deduplication**: (user, asset) pairs appearing in both sets are kept only in training.
-- **Filtering**: Only users active in both sets and assets with pricing data spanning the full test window are retained.
-
-Because consecutive test windows overlap heavily by design, the sliding-window approach ensures the averaged metrics are not dominated by any single market condition.
-
-All metrics are **averaged across all evaluation time points**, providing a robust estimate of model performance across different market conditions.
-
-#### nDCG@10 : Normalised Discounted Cumulative Gain at 10
-
-**What it measures**: How well the model predicts which assets a user will actually acquire in the future test period. This is a standard information retrieval metric that evaluates the **relevance** of a ranked recommendation list.
-
-**How it is computed**:
-
-1. **Relevance**: An asset *i* is relevant to user *u* at time *t* if and only if user *u* acquires asset *i* during the test window (t, t + 6 months). Relevance is binary: 1 if acquired, 0 otherwise.
-
-2. **Discounted Cumulative Gain (DCG@k)**: For a ranked list of *k* recommendations, DCG rewards relevant items appearing at higher ranks with a logarithmic discount:
-
-```
-DCG@k = Σ (rel_i / log₂(i + 1))   for i = 1 to k
-```
-
-Where `rel_i` is the relevance (0 or 1) of the item at rank *i*. The denominator `log₂(i + 1)` penalises relevant items appearing at lower positions: a relevant item at rank 1 gets full credit (divided by log₂(2) = 1), while one at rank 10 gets less (divided by log₂(11) ≈ 3.46).
-
-3. **Ideal DCG (IDCG@k)**: The maximum possible DCG, achieved by a perfect ranking that places all relevant items at the top.
-
-4. **nDCG@k = DCG@k / IDCG@k**: Normalised to [0, 1]. A score of 1.0 means the model produced a perfect ranking.
-
-nDCG@10 tells me whether the recommender is surfacing assets the investor actually wants. In the original paper, the best nDCG@10 was 0.3404 (LightGCN), meaning collaborative filtering models are best at predicting what users will buy.
-
-#### ROI@10 : Return on Investment at 10
-
-**What it measures**: The average monthly profitability of an equally weighted portfolio constructed from the top 10 recommended assets. This measures the **financial quality** of the recommendations.
-
-**How it is computed**:
-
-1. At each time point *t*, the model produces a top-10 ranked list of assets for each user.
-2. For each recommended asset *i*, compute its return over the 6-month test window:
-
-```
-Return(i) = (Price at t + 6 months - Price at t) / Price at t
-```
-
-3. Convert to a geometric monthly return (compounding-aware):
-
-```
-Monthly_Return(i) = (1 + Return(i))^(30 / days_in_period) - 1
-```
-
-Where `days_in_period` is the calendar days between the recommendation date and the test-end date.
-
-4. ROI@10 is the average monthly return across all 10 recommended assets (equally weighted portfolio):
-
-```
-ROI@10 = (1/10) * Σ Monthly_Return(asset_i)   for i = 1 to 10
-```
-
-5. This is then averaged across all users and all 61 time points.
-
-**Benchmark values from the paper**:
-- **Market average ROI**: 0.0079 (0.79% per month), the return if you bought every asset equally.
-- **Customer average ROI**: 0.0018 (0.18% per month), the actual average return investors achieved.
-- **Best model ROI@10**: 0.0259 (Random Forest), 2.59% per month, significantly beating the market.
-
-ROI@10 tells me whether the recommender is surfacing assets that will make money.
-
-### Baseline Models from Paper
-
-#### Price-Based Models (Profitability Prediction)
-
-These models ignore user preferences entirely. They predict which assets will have the highest future ROI based on price history, then recommend those assets to *all* users identically (non-personalised).
-
-**Features used**: Technical indicators computed from historical closing prices:
-
-| Indicator | What it measures |
-|---|---|
-| **ROI** | Return on investment over a trailing window: how much the asset gained/lost recently |
-| **Volatility** | Standard deviation of daily returns: how much the price fluctuates |
-| **MACD** | Moving Average Convergence/Divergence: a momentum indicator based on the difference between short-term and long-term exponential moving averages |
-| **Momentum** | Raw price change over N days: whether the asset is trending up or down |
-| **Rate of Change** | Percentage price change over N days: similar to momentum but normalised |
-| **RSI** | Relative Strength Index: oscillator (0-100) measuring whether an asset is overbought (>70) or oversold (<30) |
-| **DCO** | Detrended Close Oscillator: removes trend to identify cycles in price |
-| **ROI/Volatility** | Risk-adjusted return: how much return per unit of risk (similar to Sharpe ratio) |
-| **Min/Max Price** | Lowest and highest closing price over trailing window |
-
-**Models**:
-
-| Model | How it works |
-|---|---|
-| **Linear Regression** | Fits a linear function from technical indicators to future 6-month ROI. Simple but interpretable. |
-| **Random Forest** | Ensemble of decision trees. Each tree is trained on a random subset of features and data. Predictions are averaged. Best ROI@10 in the paper (0.0259). |
-| **LightGBM** | Gradient boosted decision trees. Trees are added sequentially, each correcting errors of the previous ones. Faster and often more accurate than Random Forest. |
-
-**Limitation**: These models recommend the same assets to every user. They cannot personalise as they have no concept of user preferences.
-
-#### Transaction-Based Models (User Preference Prediction)
-
-These models use only the binary user-item interaction matrix (did user *u* buy asset *i*?). They predict which assets each user is most likely to buy next.
-
-| Model | How it works |
-|---|---|
-| **Random** | Recommends assets uniformly at random. Sanity-check baseline. |
-| **Popularity** | Ranks assets by total purchase count. Non-personalised but surprisingly strong because the top 12 assets dominate 50%+ of transactions. |
-| **Matrix Factorisation (MF)** | Decomposes the user-item matrix into two low-rank matrices (user embeddings x item embeddings). A user's score for an item is the dot product of their embeddings. Classic collaborative filtering approach. |
-| **LightGCN** | Graph Convolutional Network for collaborative filtering. Builds a bipartite user-item graph, then propagates embeddings across edges to learn higher-order collaborative signals (e.g., "users who bought A and B also bought C"). **Best nDCG@10 in the paper (0.3404)**. |
-| **UB kNN** | User-Based k-Nearest Neighbours. Finds users with similar purchase histories, then recommends assets those similar users bought. |
-| **ARM (Apriori)** | Association Rule Mining. Discovers rules like "users who bought asset A tend to also buy asset B" and uses these rules to generate recommendations. |
-
-**Limitation**: These models have no awareness of asset prices or returns. They optimise purely for predicting user purchases, which is why they achieve high nDCG but near-zero ROI.
-
-#### Hybrid Models (Two-Stage Pipelines)
-
-These attempt to combine both signals by running a transaction-based model first, then using its output as features for a profitability model:
-
-| Model | How it works |
-|---|---|
-| **Hybrid-nDCG** | Takes the recommendation scores from *all* of the above models as features, then trains a LightGBM LambdaMART model to maximise nDCG. A learning-to-rank approach. |
-| **Hybrid-regression** | Takes the same features but trains a LightGBM regression model to predict 6-month ROI. |
-
-**Limitation**: These are two-stage pipelines where the first-stage models are trained independently, then their outputs are combined. The first stage never receives gradient signal from the profitability objective, so it cannot learn representations that are useful for both tasks.
-
-#### Benchmark Results (Paper Table 2)
+### Benchmark Results (Paper Table 2)
 
 | Data Source | Algorithm | nDCG@10 | ROI@10 |
 |---|---|---|---|
@@ -351,124 +120,141 @@ These attempt to combine both signals by running a transaction-based model first
 | - | Market average | - | 0.0079 |
 | - | Customer average | - | 0.0018 |
 
-### Key Findings
-
-1. **Price-based models are best at profitability (ROI)**: All three beat the market average. Random Forest is the best overall at ROI (0.0259). However, they fail at predicting what customers will buy, with nDCG barely above random.
-
-2. **Transaction-based models are best at predicting customer preferences (nDCG)**: LightGCN achieves the highest nDCG (0.3404). However, they mostly fail at profitability, as most can't beat the market. The top 10 assets concentrate >50% of all transactions, giving popularity-based approaches a structural advantage in nDCG.
-
-3. **Hybrid models don't clearly dominate**: Neither achieves the best score on either metric.
-
-4. **The two objectives conflict**: Methods optimising one metric tend to perform poorly on the other. **No single algorithm excels at both profitability and preference prediction.** LightGCN has the best nDCG (0.3404) but nearly the worst ROI (0.0004), while Random Forest has the best ROI (0.0259) but low nDCG (0.0237). This is the central finding and the motivation for future work on joint-objective models, which is the gap I hope my approach fills.
-
 ## Problem Statement
 
-**Can a single end-to-end model learn to jointly optimise for user interest and asset profitability while achieving strong performance on *both* metrics?**
+> **Existing FAR systems train against observed user transactions, but those transactions encode systematic behavioural bias documented in the finance literature (Barber and Odean 2000 / 2008; Kumar 2009). FAR-Trans contains a regulatory ground-truth signal that is almost entirely ignored: the customer's MiFID II risk profile. Using this signal as both an evaluation axis (does the recommender match the user's declared risk band?) and a learning signal (penalise high scores assigned to profile-discordant assets) reframes the FAR problem as a profile-coherence question rather than a pure preference vs profit trade-off.**
 
-All 11 baselines treat interactions as static; they ignore the temporal order and spacing of past investments. This project explores whether **sequential Transformer models** can capture these patterns and improve FAR performance.
+The original thesis (sequential SASRec / TiSASRec / Hybrid Dual-Head models for FAR) was dropped as it was a score-chasing exercise rather than a problem-finding contribution. The revised thesis frames the FAR problem around an under-exploited regulatory signal in the FAR-Trans dataset.
+
+## Research Questions
+
+1. **RQ1 (Diagnostic):** What is the distribution of profile-discordance in the FAR-Trans transaction record, broken down by `customerType`, `riskLevel`, and market regime? *Answered: see [Dataset Audit Findings](#dataset-audit-findings).*
+2. **RQ2 (Causal):** Controlling for asset volatility, customer segment, and time, do profile-discordant transactions earn lower realised 6-month excess return than profile-coherent ones? *Tested via panel regression.*
+3. **RQ3 (Audit):** What is the Profile Coherence at 10 (PC@10) of each FAR-Trans baseline (Random Forest, LightGCN)? Does the nDCG-ROI tradeoff explain itself partially as a profile-coherence axis? *Tested via the baseline grid sweep.*
+4. **RQ4 (Method):** Does adding (a) profile conditioning and (b) a profile-coherence regulariser to LightGCN improve PC@10 and ROI@10 with minimal nDCG@10 cost? Which of the two components carries the gain? *Tested via Profile-Coherent LightGCN.*
+
+## Dataset Audit Findings
+
+The dataset audit (`uv run poe eda`, source in `src/analysis/eda_profile_coherence.py`, full numbers in `outputs/eda/profile_coherence/summary.json`) tests whether profile-coherence is a load-bearing signal in FAR-Trans. The headline numbers below all come from the hierarchical asset risk-class mapping (mutual funds via `assetSubCategory`, bonds via subcategory, stocks via 252-day annualised volatility quartile).
+
+### Coverage
+
+| Quantity | Value | Notes |
+|---|---|---|
+| Total customers | 29,090 | Matches FAR-Trans paper |
+| Customers with usable MiFID band | 28,770 (98.9%) | 7,141 (24.5%) regression-imputed `Predicted_*` |
+| Customers with `Not_Available` band | 320 (1.1%) | Excluded from PC@k |
+| Total assets classified | 806 | 100% mapping coverage |
+| Total Buy transactions | 228,913 | |
+| Buy transactions scoreable for PC | 228,241 (99.7%) | |
+
+The framework can score 99.7% of Buy transactions, so any sample-selection bias from missing profile signals is negligible.
+
+### Finding 1: 18.6% of FAR-Trans Buy transactions are profile-discordant
+
+Across 228,241 scoreable Buy transactions, the discordance distribution is:
+
+| Discordance `d` | Count | Share |
+|---|---|---|
+| `d = 0` (exact band match) | 77,925 | 34.1% |
+| `d = 1` (within tolerance) | 107,899 | 47.3% |
+| `d = 2` | 35,581 | 15.6% |
+| `d = 3` (extreme mismatch) | 6,836 | 3.0% |
+
+Under the default tolerance (`d <= 1`) **81.4% of transactions are profile-coherent**, leaving **18.6% (42,417 transactions) that violate the user's declared MiFID band by 2 or more steps**. Mean discordance is 0.87 bands. See `outputs/eda/profile_coherence/transaction_discordance_distribution.png`.
+
+### Finding 2: Self-discordance is a customer-level trait, not transaction-level noise
+
+The per-customer fraction of discordant transactions is bimodal, not normal:
+
+- **64.4% of customers are fully profile-coherent** (every transaction within `d <= 1`).
+- **17.2% of customers are fully discordant** (every transaction at `d >= 2`).
+- 20.3% have a majority-discordant trading record.
+- The middle of the distribution is sparse.
+
+This U-shape (`outputs/eda/profile_coherence/customer_self_discordance_histogram.png`) is the strongest empirical motivation for the thesis: discordance is *systematic at the customer level*, not random noise. A recommender that ignores it inherits the same bias. Behavioural-finance literature (Barber and Odean 2000 / 2008; Kumar 2009) predicts exactly this concentration.
+
+### Finding 3: Extreme-band customers reach toward the centre
+
+Decomposing transaction discordance by the customer's declared MiFID band reveals a regression-toward-the-mean pattern:
+
+| Declared MiFID Band | Transactions | Coherent share (`d <= 1`) |
+|---|---|---|
+| Conservative | 14,193 | **45.1%** |
+| Income | 73,468 | 90.9% |
+| Balanced | 99,901 | 89.9% |
+| Aggressive | 40,679 | **56.2%** |
+
+Mid-band customers (Income, Balanced) are roughly 90% profile-coherent. The two extreme bands are dramatically less coherent: more than half of Conservative customers' Buy transactions land at `d >= 2` (chasing risk), and a similar fraction of Aggressive customers' purchases land in safer assets than their profile permits (loss-aversion or yield-chasing). See `outputs/eda/profile_coherence/discordance_by_risk_level.png`.
+
+### Finding 4: Discordance is stable across regimes
+
+Mean discordance per calendar year stays in the 0.83-0.98 band across 2018-2022 (`outputs/eda/profile_coherence/discordance_by_year.png`). The COVID-19 crash and recovery do not visibly shift the pattern. This rules out a "panic trading drove the discordance" explanation and supports the customer-level-trait reading from Finding 2.
+
+### Finding 5: Hierarchical mapping is more lenient than pure volatility, but not by much
+
+The sensitivity check uses pure volatility quartiles for *all* assets (no metadata):
+
+| Mapping | `d <= 1` share | Strict `d == 0` share | Mean `d` |
+|---|---|---|---|
+| Hierarchical (default) | 81.4% | 34.1% | 0.87 |
+| Pure volatility quartiles | 73.2% | 26.8% | 1.03 |
+
+Switching to a pure-volatility mapping shifts the headline `d <= 1` rate down by 8 pp. The qualitative findings (1-4) hold under both mappings; we report the hierarchical numbers as the primary result because using regulatory metadata where it exists is a regulator-aligned design choice, and report the volatility numbers in the sensitivity table.
+
+### What this implies for the thesis
+
+The 18.6% discordant share with a customer-level concentration justifies treating profile-coherence as a load-bearing signal. The remaining empirical questions:
+
+- **Do profile-discordant transactions earn lower realised excess returns?** Tested via a panel regression (RQ2).
+- **Do high-nDCG FAR baselines reproduce this discordance?** Tested by computing PC@10 on the existing baselines (RQ3).
+- **Can a minimal architectural change correct it?** Tested via Profile-Coherent LightGCN (RQ4).
 
 ## Novelty and Research Contributions
 
-- **Extending FAR with attention-based sequential modelling**: All existing FAR baselines treat user-item interactions as static, unordered sets. I explore applying **self-attentive sequential recommendation** (SASRec; Kang & McAuley, 2018) to capture temporal patterns: recency effects, sequential dependencies, and evolving investor preferences. The **order and timing** of past investments carry important signal that static models miss.
-
-- **Time-aware attention for irregularly spaced financial transactions**: Standard sequential models (including SASRec) encode position in the sequence but not **when** those purchases occurred in real time. This is a critical limitation for investment data because:
-  - Financial transactions are **highly irregular**: a user's 5th and 6th transactions might be 2 days apart or 18 months apart, and this temporal gap carries important signal.
-  - **Market regimes** change over time: purchases made during the 2020 COVID crash have a very different context than purchases during the 2021 bull market, even if they are adjacent in the sequence.
-  - I extend SASRec to **TiSASRec** (Li et al., 2020), which injects both *relative* time intervals between consecutive transactions and *absolute* timestamps into the attention mechanism.
-
-- **End-to-end joint interest-profitability optimisation**: The original paper's hybrid baselines are **two-stage pipelines** that first score relevance, then rerank by profitability. This has two key limitations:
-  - The CF model is trained to maximise relevance only; it receives no gradient signal from profitability.
-  - The reranking model can only reshuffle the CF model's output: it cannot surface assets the CF model missed.
-  - I propose a **single, end-to-end dual-head model** that jointly optimises both objectives through shared representations. I describe the full architecture in the [Proposed Approach](#proposed-approach) section.
+1. **Profile Coherence at k (PC@k).** A new evaluation metric that scores the share of recommended top-k assets whose risk class is within one MiFID band of the user's declared profile. Reported alongside nDCG, ROI, and Recall on every model.
+2. **Self-discordance audit of FAR-Trans.** Empirical decomposition (above) of how often customers transact outside their declared risk band, and how that decomposes by segment, declared band, and time. The U-shaped per-customer distribution (Finding 2) and the band-asymmetry pattern (Finding 3) are new findings about the dataset itself.
+3. **Profile-Coherent LightGCN.** A minimal extension of LightGCN that conditions on `(riskLevel, customerType, investmentCapacity)` via a summed embedding and adds a profile-coherence regulariser to the BPR loss. The architecture delta is one embedding sum and one extra loss term. This shows profile coherence can be injected as a *learning* signal, not only as a post-hoc re-ranking constraint (the path taken by RURA, Kim et al. 2025).
 
 ## Proposed Approach
 
-### Stage 1: SASRec : Self-Attentive Sequential Recommendation
+### Risk-class assignment for assets
 
-**Core idea**: Instead of treating a user's purchases as an unordered set (as CF methods do), I model them as a **chronologically ordered sequence** and use a Transformer encoder to predict the next asset.
+Each asset is mapped to one of the four MiFID bands using a hierarchical rule:
 
-**Architecture**:
+1. **Mutual funds (`assetCategory == 'MTF'`)** carry an `assetSubCategory` mapped directly: `Money Market` -> Conservative, `Bond` / `Bonds` -> Income, `Balanced` -> Balanced, `Equity` / `Large Cap` -> Aggressive. `Other` and `Structured` fall through.
+2. **Bonds (`assetCategory == 'Bond'`)** with `Government` -> Conservative, `Corporate` -> Income, otherwise Income.
+3. **Stocks and remaining assets** are binned by trailing 252-trading-day annualised volatility quartile: lowest quartile -> Conservative, ..., top quartile -> Aggressive.
 
-```
-Input:  [asset_1, asset_2, ..., asset_L]     (user's last L purchases, in order)
-|
-Asset embedding + Learnable positional embedding
-|
-N x Transformer blocks (causal masked self-attention + FFN)
-|
-Output embedding at position L -> dot product with candidate asset embeddings -> ranking scores
-```
+The bands are encoded as ordinals: Conservative=0, Income=1, Balanced=2, Aggressive=3.
 
-**Why causal masking?** Each position can only attend to itself and earlier positions (like GPT). This ensures that when predicting the next purchase, the model can only use information from *past* purchases, not future ones.
+### Profile-discordance and PC@k
 
-**Training**: Binary cross-entropy loss. For each position in the sequence, the positive example is the *actual* next item the user purchased, and negative examples are randomly sampled assets the user never bought.
-
-### Stage 2: TiSASRec : Time-Interval-Aware Extension
-
-**Core idea**: I inject information about *when* transactions happened into the attention mechanism, so the model knows that a purchase 3 days ago is more relevant than one 2 years ago.
-
-**What changes from SASRec**:
-
-1. **Relative time intervals**: For each pair of positions (i, j) in the sequence, I compute the time gap in days: `delta_{ij} = |timestamp_i - timestamp_j|`. These are bucketed via log-scale bucketing into `[0, time_bucket_count)` to handle the long tail of time gaps, then each bucket is mapped to a per-head scalar bias via a learnable embedding table.
-
-2. **Absolute time positions**: Days since a reference date are also log-bucketed and embedded into per-head scalar biases.
-
-3. **Modified attention computation**:
+For a customer `u` with declared band `b_u` and an asset `i` with band `b_i`:
 
 ```
-Attention(Q, K) = softmax( (Q·K^T + R_rel + R_abs) / sqrt(d) )
+discordance(u, i) = |b_u - b_i|
+PC@k = (1/k) * |{i in top_k : discordance(u, i) <= 1}|
 ```
 
-Where `R_rel` and `R_abs` are per-head additive bias matrices looked up from learnable embedding tables indexed by the bucketed relative and absolute time values. The standard attention score `Q·K^T` is augmented with these two bias terms that allow the model to weight attention based on temporal proximity and absolute calendar position.
+Customers whose `risk_band` is `None` (raw `Not_Available`) contribute 0.0 to PC@k. The strict variant (`discordance == 0`) is reported as a sensitivity row.
 
-**Why this matters for financial data**: An investor who made 5 trades in the last week is behaving very differently from one whose 5 trades are spread over 3 years. Standard SASRec cannot distinguish these two users because their *sequences* look identical. However, TiSASRec can, as it encodes the time gaps.
+### Profile-Coherent LightGCN
 
-### Stage 3: Hybrid Dual-Head (Interest + Profitability)
+Two minimal additions on top of `LightGCNBaseline`:
 
-**Core idea**: I add a second prediction head to the TiSASRec encoder that predicts asset profitability, and train both heads jointly.
+1. **Profile embedding.** Three small `nn.Embedding` tables keyed on `(risk_band, customer_type, investment_capacity)`. The lookup vectors are summed, projected to the LightGCN embedding dimension, and added to the user embedding *before* the LGConv stack. Toggle via `profile_embedding_enabled`.
+2. **Profile-coherence regulariser.** The total loss becomes
+   ```
+   L = L_BPR + lambda_pc * E_{(u, i_pos) in batch} [ d(u, i_pos) * sigmoid(score(u, i_pos)) ]
+   ```
+   This penalises high scores assigned to profile-discordant positives, weighted by the discordance distance. Toggle via `profile_coherence_enabled`. The strength is `profile_coherence_lambda`.
 
-**Architecture**:
+Setting both toggles to False reduces the model exactly to vanilla LightGCN, which is the cleanest possible 2x2 ablation: each row of the ablation table corresponds to one cell of `(profile_embedding_enabled, profile_coherence_enabled)`.
 
-```
-            User transaction sequence
-                  |
-            TiSASRec encoder
-                  |
-            User embedding (h_u)
-                  |
-      ┌─────────────┴─────────────┐
-      |                           |
-Interest head                Profitability head
-h_u · asset_emb^T           [h_u ; tech_indicators] -> MLP -> ROI_pred
-      |                           |
-score_interest              score_profit
-      |                           |
-      └─────────┬─────────────────┘
-            |
-      alpha * score_interest + (1 - alpha) * score_profit
-            |
-            Final ranking
-```
+### Evaluation Schedule
 
-**Training loss**: `L = L_interest + lambda * L_profit`
-- `L_interest`: Binary cross-entropy on next-item prediction (same as SASRec/TiSASRec)
-- `L_profit`: Mean squared error between predicted ROI and actual 6-month ROI
-- `lambda`: Hyperparameter controlling the trade-off between the two losses
-
-**Inference**: At recommendation time, each candidate asset gets two scores. The final ranking uses `alpha * score_interest + (1 - alpha) * score_profit`, where `alpha` is tunable (or could be learned per user based on their risk profile).
-
-### Our Evaluation Schedule
-
-Our implementation merges the paper's two separate date ranges into one continuous range (Aug 2019 to May 2022, 68 slots) to produce **69 evenly-spaced evaluation points** covering the full dataset period:
-- The first time point is **t₀ = August 1, 2019** (providing ~1.5 years of training data from Jan 2018), snapped to the nearest trading day.
-- Subsequent time points are spaced approximately **9 trading days** apart (t₁, t₂, ..., t₆₈), with the last point near May 23, 2022.
-- At each time point *t*:
-  - **Training set**: All pricing data and transactions **before** *t*.
-  - **Test set**: All transactions in the 6-month window **(t, t + 6 months)**.
-  - Deduplication: If the same (user, asset) pair appears in both train and test, it is kept only in training (to avoid trivial predictions).
-  - Filtering: Only users with at least one interaction in *both* train and test are retained. Only assets with pricing data spanning the full test window are retained.
-
-Because time points are ~9 trading days apart but each test window spans ~6 months (~130 trading days), consecutive test windows overlap heavily by design. This sliding-window approach ensures the averaged metrics are not dominated by any single market condition. All metrics are **averaged across all 69 time points**.
+The original FAR-Trans evaluation schedule is preserved unchanged: 69 evenly-spaced evaluation splits at ~9-trading-day intervals, each with a 6-month test window. See `src/data/splitting.py` and the FAR-Trans paper's Section 4 for the full mechanics.
 
 ## Source Code Architecture
 
@@ -477,108 +263,40 @@ Because time points are ~9 trading days apart but each test window spans ~6 mont
 ```
 src/
     config/
-        settings.py             # Pydantic BaseSettings: hyperparameters for all models
-        schemas.py              # Pydantic models: TemporalSplitData, SequenceData, EvaluationResult
+        settings.py             # Pydantic BaseSettings: hyperparameters and data paths
+        schemas.py              # TemporalSplitData, CustomerProfile, EvaluationResult
     data/
-        loading.py              # Load raw CSVs (FAR-Trans: drop zero-price assets, dedup)
-        splitting.py            # 69 temporal train/test splits with cumulative construction
-        sequences.py            # Chronological user purchase sequences, time bucketing
-        sequence_analysis.py    # Sequence-length distribution analysis (CLI: poe analyze-sequences)
+        loading.py              # Load raw CSVs (FAR-Trans cleaning conventions)
+        splitting.py            # 69 temporal train/test splits
     features/
-        technical_indicators.py # 30-column indicator set (INDICATOR_COLUMNS) with 5-day MA smoothing
-    models/
-        protocol.py             # Recommender protocol + MODEL_REGISTRY extensibility surface
-        train.py                # Shared PyTorch training loop, seed utilities
-        random_forest.py        # Price-based RF regressor (non-personalised baseline)
-        light_gcn.py            # LightGCN collaborative filtering (PyG LGConv, BPR loss)
-        sasrec.py               # Self-attentive sequential recommendation (Transformer encoder)
-        tisasrec.py             # Time-interval-aware SASRec extension
-        hybrid.py               # Dual-head model: interest + profitability
+        technical_indicators.py # 30-column indicator set for the Random Forest baseline
+    profile_coherence/
+        risk_classification.py  # Asset to MiFID 4-band mapping (hierarchical + volatility quartile)
+        customer_profile.py     # Customer profile lookup builder (riskLevel + segment + capacity)
+        discordance.py          # Per-transaction and per-recommendation discordance scoring
     evaluation/
-        metrics.py              # nDCG@k, ROI@k, and Recall@k computation
+        metrics.py              # nDCG@k, ROI@k, Recall@k, PC@k
+    models/
+        protocol.py             # Recommender Protocol (structural type only)
+        random_forest.py        # Price-based RF regressor (paper baseline)
+        light_gcn.py            # LightGCN collaborative filtering (paper baseline)
+        profile_coherent_lgcn.py# Profile-Coherent LightGCN (method-contribution model)
     pipeline/
-        preprocessing.py        # Load raw data, generate splits and sequences, save to disk
-        runner.py               # Train and evaluate models via MODEL_REGISTRY
-        tuning.py               # Ray Tune grid search around FAR-Trans paper configurations
+        preprocessing.py        # Generate splits, save to disk
+        baseline_evaluation.py  # Ray-driven grid sweep (6 RF + 8 LightGCN trials), each trial is a full 69-split eval
+    analysis/
+        eda_profile_coherence.py# Dataset audit (figures + summary.json)
+        baseline_decomposition.py # Post-evaluation: best-trial selection, decomposition, scatter
 ```
 
 ### Configuration
 
-These two files define all the data structures and hyperparameters that every other module depends on.
-
-**`src/config/settings.py`**: All hyperparameters as Pydantic `BaseSettings` classes. The sequential model configs (`SASRecConfig`, `TiSASRecConfig`, `HybridDualHeadConfig`) share the same core Transformer parameters and add model-specific ones. `HybridDualHeadConfig` introduces `loss_lambda` (training trade-off between interest and profit loss) and `inference_alpha` (scoring blend at recommendation time).
-
-**`src/config/schemas.py`**: Three Pydantic models that flow through the entire system:
-- `TemporalSplitData`: one train/test split (training interactions, test interactions, eligible users/assets, ID-to-index mappings). This is the central data structure that every model receives
-- `SequenceData`: chronologically ordered purchase sequences per user for one split. Only the sequential models (SASRec, TiSASRec, HybridDualHead) use this
-- `EvaluationResult`: nDCG and ROI for one model on one split
-
-### Data Pipeline
-
-1. **Loading** (`data/loading.py`): Loads 5 CSVs with date parsing. For close prices, mirrors `data/financial_asset_time_series.py:load` from the [FAR-Trans reference](https://github.com/JavierSanzCruza/far-trans): drops every asset that ever has a zero close price, dedups `(ISIN, timestamp)` keeping the last value, and sorts. Customer and asset CSVs are deduped by keeping the latest timestamp per ID. Note: for pure paper replication only `transactions.csv` and `close_prices.csv` are needed; the other files are loaded for future extensions (e.g., per-user risk conditioning) but are not consumed by any current model.
-
-2. **Temporal Splits** (`data/splitting.py`): Generates 69 evaluation splits by snapping to actual trading days from `close_prices.csv` over a single range defined by `EVALUATION_DATE_RANGE = (2019-08-01, 2022-05-23, 68 slots, 13 future steps)`. The algorithm divides all trading days in that range into evenly spaced slots (~9 trading days apart) and pairs each slot `i` with slot `i+13` as its test-end date (13 steps spans ~6 months). This adapts `data/financial_data_continuous.py:get_dates()` from the [FAR-Trans reference](https://github.com/JavierSanzCruza/far-trans) to a single continuous range. The cold-start positives filter (test items must have appeared in training) is applied unconditionally, mirroring `data/financial_interaction_data.py:106-107` in the same repo. Per-split, three filters run: per-user test-in-train dedup, global train-item filter, and asset eligibility (must have a close price on exactly the recommendation date AND the future date). The core loop in `generate_all_splits` cumulatively builds training interactions via `_add_delta_transactions` (mutates in place), then `copy.deepcopy` snapshots the state for each split.
-
-    Sample `TemporalSplitData` (one of the 69 splits):
-    ```python
-    TemporalSplitData(
-        split_index=0,
-        time_point=date(2019, 8, 1),
-        test_end=date(2020, 2, 1),
-        training_interactions={
-            "CUST_001": {"IE00B4L5Y983", "US0378331005"},
-            "CUST_002": {"DE0005933931"},
-        },
-        test_interactions={
-            "CUST_001": {"LU0290358497"},        # assets bought in the 6-month test window
-            "CUST_002": {"US0378331005"},         # excluding assets already in training
-        },
-        eligible_customer_ids=["CUST_001", "CUST_002"],
-        eligible_asset_ids=["IE00B4L5Y983", "US0378331005", "LU0290358497", "DE0005933931"],
-        customer_id_to_index={"CUST_001": 0, "CUST_002": 1},
-        asset_id_to_index={"IE00B4L5Y983": 0, "US0378331005": 1, "LU0290358497": 2, "DE0005933931": 3},
-    )
-    ```
-
-3. **Sequences** (`data/sequences.py`): Builds chronologically ordered purchase sequences per user including repeat purchases, plus time bucketing utilities for the TiSASRec / HybridDualHead extensions. Not used by the RF or LightGCN baselines. Five utilities: `build_user_sequences` (chronological `(asset_id, date)` pairs), `truncate_sequences` (keep last N items), `compute_relative_time_intervals` (days between consecutive purchases), `compute_absolute_positions` (days since a reference date), and `bucket_time_values` (log-scale bucketing to handle the long tail of time gaps).
-
-    Sample `SequenceData` (one split's worth of user sequences):
-    ```python
-    SequenceData(
-        split_index=0,
-        time_point=date(2019, 8, 1),
-        user_sequences={
-            "CUST_001": [
-                ("IE00B4L5Y983", date(2018, 3, 15)),
-                ("US0378331005", date(2018, 9, 22)),
-                ("IE00B4L5Y983", date(2019, 1, 10)),   # repeat purchases preserved
-            ],
-            "CUST_002": [
-                ("DE0005933931", date(2019, 5, 3)),
-            ],
-        },
-    )
-    ```
-
-4. **Technical Indicators** (`features/technical_indicators.py`): Computes the `full_short` indicator set the FAR-Trans paper uses for its RF baseline. `INDICATOR_COLUMNS` defines the canonical 30 columns across three rolling horizons (21d, 63d, 126d): ROI, volatility, average price, Sharpe ratio, momentum, rate of change, EMA; plus single-horizon MACD (12/26), RSI-14, DCO-22, and rolling min/max. `DEFAULT_PERIODS` is `(21, 63, 126, 189)`, meaning the DataFrame also computes 189d variants of the period-based indicators beyond the 30 canonical columns. After computing all indicators, a 5-day moving-average smoothing pass is applied to every numeric column, followed by per-asset `dropna()`. This matches `algorithms/kpi_gen/indicators.py` + `algorithms/kpi_gen/ma_kpi_generator.py` from the [FAR-Trans reference](https://github.com/JavierSanzCruza/far-trans) formula-by-formula, and `recommendation.py:85-94` column-by-column in identical order for the 30 canonical columns. `compute_all_indicators` is a helper that zero-fills missing-asset rows at lookup time; it is only used by HybridDualHead while the RF baseline queries the indicator DataFrame directly.
-
-    | Indicator family | Horizons | Formula |
-    |---|---|---|
-    | `avg_price` | DEFAULT_PERIODS | `close.rolling(h).mean()` |
-    | `past_profitability` | `(1,) + DEFAULT_PERIODS` | `(close - close.shift(h)) / close.shift(h)` |
-    | `volatility` | DEFAULT_PERIODS | `std(daily_return, h) * sqrt(252)` |
-    | `sharpe` | DEFAULT_PERIODS | `past_profitability_h / volatility_h` (Inf/NaN -> 0) |
-    | `m` (momentum) | DEFAULT_PERIODS | `close.diff(h)` |
-    | `roc` (rate of change) | DEFAULT_PERIODS | `m_h / close.shift(h)` |
-    | `min`, `max` | DEFAULT_PERIODS | `close.rolling(h).{min,max}()` |
-    | `exp_mean` | DEFAULT_PERIODS | `close.ewm(span=h).mean()` |
-    | `MACD` | single | `EMA(close, 12) - EMA(close, 26)` (adjust=False) |
-    | `rsi_14` | single | Wilder's RSI via EMA(span=14, adjust=False) |
-    | `dco_22` | single | `close.shift(12) - close.rolling(22).mean()` |
+- `src/config/settings.py`: `RandomForestConfig`, `LightGCNConfig`, `ProfileCoherentLightGCNConfig`, `ExperimentConfig`, `DataPaths`. The new model's config carries six profile-related fields (the embedding dimension, the two boolean toggles, the regulariser scale, and the squared-distance flag).
+- `src/config/schemas.py`: `TemporalSplitData` (one split), `CustomerProfile` (regulatory record per customer), `EvaluationResult` (now includes `profile_coherence_at_k`).
 
 ### Models
 
-All five models implement the `Recommender` protocol and are discovered via `MODEL_REGISTRY` in `src/models/protocol.py`:
+All three models implement the `Recommender` Protocol:
 
 ```python
 class Recommender(Protocol):
@@ -588,201 +306,123 @@ class Recommender(Protocol):
     def recommend_for_user(self, user_id: str, excluded_assets: set[str], k: int = 10) -> list[str]: ...
 ```
 
-`MODEL_REGISTRY` is the single source of truth for model metadata. Each entry declares its config class, data dependencies (`needs_indicators`, `needs_sequences`, `needs_close_prices`), and factory. Adding a new model is one registry entry plus the `Recommender` implementation:
-
-```python
-MODEL_REGISTRY["my_new_model"] = ModelEntry(
-    model_name="my_new_model",
-    config_class=MyNewModelConfig,
-    needs_indicators=True,
-    needs_sequences=False,
-    needs_close_prices=False,
-)
-```
+There is deliberately no central registry. With three known recommenders, each pipeline (baselines, profile-coherent) constructs its models directly: the registry indirection of the legacy code added complexity without buying anything.
 
 | Model | Category | Data Source | Key Mechanism |
 |---|---|---|---|
 | **Random Forest** | Price-based | Technical indicators | sklearn regressor predicts forward 126-trading-day ROI; ranks all assets identically for every user |
-| **LightGCN** | Transaction-based | User-asset bipartite graph | PyTorch Geometric `LGConv` (canonical symmetric `D^{-1/2}AD^{-1/2}`, no self-loops); BPR loss with L2 on initial embeddings; dot-product scoring |
-| **SASRec** | Sequential | Chronological purchase sequences | Transformer encoder with causal masking; BCE loss on next-item prediction |
-| **TiSASRec** | Sequential + temporal | Sequences + timestamps | Extends SASRec with relative/absolute time-interval embeddings in attention |
-| **HybridDualHead** | Sequential + price | Sequences + timestamps + indicators | Extends TiSASRec with MLP profitability head; combined BCE + MSE loss; alpha-weighted scoring |
+| **LightGCN** | Transaction-based | User-asset bipartite graph | PyTorch Geometric `LGConv` (canonical symmetric `D^{-1/2}AD^{-1/2}`, no self-loops); BPR loss with L2 on initial embeddings |
+| **Profile-Coherent LightGCN** | Transaction + regulatory profile | Interaction graph + customer profiles + asset risk classes | LightGCN backbone with summed `(risk, segment, capacity)` profile embedding and a profile-coherence regulariser added to BPR |
 
-**`src/models/train.py`**: Two shared utilities: `set_random_seeds` (reproducibility across numpy, torch, Python random) and `train_pytorch_model` (generic training loop: model, dataset, loss function, optimizer, epochs). Used by SASRec, TiSASRec, and HybridDualHead. LightGCN has its own training loop because it needs the edge index.
+### Profile-Coherence Module
 
-**Note on LightGCN fidelity.** The [FAR-Trans paper](https://github.com/JavierSanzCruza/far-trans) runs LightGCN through the [Beta-RecSys library](https://github.com/beta-team/community/blob/master/beta_recsys/README.md) (`beta_rec/models/lightgcn.py` + `beta_rec/data/base_data.py:337-360`), which applies NGCF-style asymmetric `D^{-1}(A + I)` normalization with added self-loops. That is not the LightGCN of He et al. 2020 (Eq. 3), which specifies symmetric `D^{-1/2}AD^{-1/2}` without self-loops. Our implementation uses PyTorch Geometric's `LGConv`, which is the canonical paper formulation; Beta-RecSys's implementation is a bug. Our reported LightGCN numbers are therefore the correct baseline and may differ from the paper's 0.3404 in either direction. We also deliberately do not track a "best validation-epoch checkpoint": Beta-RecSys selects the best epoch on a validation set that FAR-Trans sets equal to the test set, which is leaky. We use last-epoch weights for honest inference.
+`src/profile_coherence/` is the new package that owns the measurement framework:
 
-**Sequential model details.** The three sequential models form an inheritance chain. Each extends the previous one:
-
-**`src/models/sasrec.py`** (base sequential Transformer):
-- `SASRecModel` (nn.Module): Transformer encoder with causal masking. `_compute_attention_scores(Q, K)` is the override point (plain `Q * K^T`). `predict` runs the forward pass, takes the last position's hidden state, and dot-products it with candidate embeddings
-- `TransformerBlock` (nn.Module): multi-head self-attention with an injectable `attention_score_fn`, feed-forward network with GELU, two residual connections with LayerNorm
-- `SASRecDataset`: converts asset sequences to indices (offset by +1 because 0 is padding), next-item prediction targets, random negative sampling, left-padding
-- `SASRecRecommender`: `train_on_split` receives user sequences via kwargs, truncates, builds dataset, trains with BCE loss. `recommend_for_user` left-pads the user's sequence, runs the model, returns top-k
-
-**`src/models/tisasrec.py`** (extends SASRec with time-interval awareness):
-- `TiSASRecModel(SASRecModel)`: adds `relative_time_embedding` and `absolute_time_embedding` tables. Overrides `_compute_attention_scores` to add per-head time-interval biases to the base `Q * K^T` scores
-- `TiSASRecDataset(SASRecDataset)`: extends the base dataset to also return relative and absolute time matrices (seq_len x seq_len), both left-padded with zeros
-- `TiSASRecRecommender(SASRecRecommender)`: overrides `_build_model`, `_build_dataset`, `train_on_split`, `recommend_for_user`, and adds `_build_inference_time_matrices`
-
-**`src/models/hybrid.py`** (dual-head: interest + profitability):
-- `HybridDualHeadModel(TiSASRecModel)`: adds `profitability_head` (MLP taking `[user_hidden_state ; technical_indicators]` and outputting a scalar ROI prediction)
-- `HybridDualHeadRecommender(TiSASRecRecommender)`: overrides `train_on_split` (combined loss: `interest_loss + lambda * profit_loss` where interest is BCE and profit is MSE), `_build_indicator_and_roi_tensors` (pre-computes indicator features and ROI targets), and `recommend_for_user` (min-max normalizes interest and profitability scores, then blends: `alpha * interest + (1-alpha) * profit`)
-
-```
-nn.Module hierarchy:
-    SASRecModel
-        |--- _compute_attention_scores (Q*K^T)
-        |--- TransformerBlock (multi-head attention + FFN)
-        |
-        TiSASRecModel(SASRecModel)
-            |--- overrides _compute_attention_scores (adds time biases)
-            |--- adds relative_time_embedding, absolute_time_embedding
-            |
-            HybridDualHeadModel(TiSASRecModel)
-                |--- adds profitability_head (MLP)
-                |--- adds predict_profitability method
-
-Recommender hierarchy:
-    SASRecRecommender
-        |--- _build_model       -> SASRecModel
-        |--- _build_dataset     -> SASRecDataset
-        |--- train_on_split     (BCE loss)
-        |--- recommend_for_user (dot product scoring)
-        |
-        TiSASRecRecommender(SASRecRecommender)
-            |--- _build_model   -> TiSASRecModel
-            |--- _build_dataset -> TiSASRecDataset
-            |--- train_on_split (BCE loss + time matrices)
-            |--- recommend_for_user (dot product + time matrices)
-            |
-            HybridDualHeadRecommender(TiSASRecRecommender)
-                |--- _build_model   -> HybridDualHeadModel
-                |--- train_on_split (BCE + lambda * MSE loss)
-                |--- recommend_for_user (alpha * interest + (1-alpha) * profit)
-```
-
-### Evaluation
-
-- **nDCG@k**: binary relevance (1 if the user acquires the asset in the 6-month test window, 0 otherwise); IDCG is capped at `min(k, num_relevant)`; users with no relevant items contribute 0. Matches `metrics/pure_ndcg.py` from the [FAR-Trans reference](https://github.com/JavierSanzCruza/far-trans) (base-invariant: ours uses `log2`, theirs uses natural log, the ratio is identical).
-- **ROI@k**: geometric monthly return `(1 + total_return)^(30/days) - 1` per recommended asset, averaged across the top-k list. Missing-price recommendations are imputed as 0 return (not skipped), matching `metrics/kpi_monthly_evaluation_metric.py` and `metrics/kpi_evaluation_metric.py:30-32` in the same repo. Calendar-day horizon between recommendation date and test-end date.
-- **Recall@k**: fraction of the user's relevant assets (buys in the 6-month test window, filtered to eligible assets) that appear in the top-k. Users with no relevant items contribute 0 (same convention as nDCG). Recall@k is the standard complement to nDCG@k in sequential recommendation literature (e.g. SASRec, TiSASRec): nDCG@k captures ranking quality, Recall@k captures coverage. It is reported for every model (not just the sequential ones) so all five baselines can be compared on the same axis.
-- **`build_price_lookup`**: finds the closest available price on or before the time point and test end for each asset. Since all split dates are snapped to actual trading days, the `<=` fallback collapses to exact-date lookup.
-- **`evaluate_model_on_split`**: iterates `split.eligible_customer_ids` (users in both train and test), averages all three metrics across users.
-- All three metrics are averaged across all eligible users and then across all 69 temporal splits. The tuning pipeline selects the "best" trial by a single `primary_metric` (one of `"ndcg"`, `"roi"`, `"recall"` per `ModelTuningSpec`) but always logs all three in the Ray Tune CSV output so trade-offs are visible.
-
-### Hyperparameter Tuning
-
-The tuning pipeline (`pipeline/tuning.py`) uses Ray Tune's native grid search via `tune.grid_search(...)`. Each model declares a `ModelTuningSpec` with a small grid centered on each model's reference configuration so that the reference hyperparameters are always one of the trial points. Evaluation is on 3 validation splits at fixed dates (2019-04-01, 2019-10-01, 2020-01-31), snapped to the nearest trading day. Only the first validation date (2019-04-01) precedes the first evaluation split (2019-08-01); the other two fall within the evaluation period. Because models are retrained from scratch for every evaluation split, the validation step selects hyperparameters but does not leak trained weights into Table 2. Best configs are saved to a timestamped JSON directory under `outputs/configs/` and loaded by the runner via `--config`.
-
-#### Validation/Evaluation Window Overlap (Known Caveat)
-
-Two of the three validation splits (2019-10-01 and 2020-01-31) have 6-month test windows that overlap in calendar time with the test windows of early evaluation splits (e.g. validation split 2020-01-31 tests on Feb–Jul 2020 transactions, which are substantially the same rows scored by evaluation split 014 at time_point 2020-01-27). Since hyperparameters are selected by maximising averaged nDCG/ROI on these validation splits, configurations that fit those specific early-2020 transactions are implicitly favoured when the same transactions are later scored in Table 2. **This is hyperparameter-selection bias, not train-test contamination**: the model weights themselves are always retrained from scratch per evaluation split, but the choice of *which* weights to train (i.e. the grid point) is informed by data that partially appears in the benchmark.
-
-We accept this trade-off pragmatically rather than enforce strict temporal disjointness, for three reasons:
-
-1. **Consistency with the FAR-Trans benchmark.** The reference paper uses the same validation-dates-inside-evaluation-range pattern, so our numbers remain comparable to Table 2 in the paper.
-2. **Training cutoffs still differ.** A validation split's training set is strictly smaller than an evaluation split's training set at the same time point, so the two tasks are not identical even when their test windows overlap; the bias is real but bounded.
-3. **Regime coverage would suffer under strict disjointness.** Moving all three validation time_points before 2019-02-01 (so their 6-month test windows close before the first evaluation point on 2019-08-01) would push tuning onto ~1 year of early FAR-Trans data where transaction density is lower and market regimes are narrower. The resulting hyperparameter choices would generalise worse to the 2020–2022 evaluation period than the current setup, even though they would be formally cleaner.
-
-Readers should interpret reported nDCG@10 and ROI@10 with a small upward bias in mind. A fully held-out alternative (option 1 above, or trimming the first ~15 evaluation splits whose test windows overlap with validation) can be added as a future robustness check without changing the tuning grids.
-
-#### Trial Concurrency and Resource Allocation
-
-Ray Tune assigns resources per trial based on each model's compute profile, not a single blanket rule:
-
-- **Random Forest** always claims `{"cpu": 1}` regardless of `--device`, because sklearn has no GPU backend. With `max_concurrent_trials=3`, all 3 RF trials run in parallel on the CPU pool.
-- **LightGCN, SASRec, TiSASRec, HybridDualHead** claim `{"gpu": 1, "cpu": 1}` when `--device cuda` is passed. `max_concurrent_trials=1` for all four because a single physical GPU can only satisfy one `{"gpu": 1}` request at a time; setting it higher has no effect on a single-GPU node.
-
-The single-GPU cluster allocation (1 GPU, 4 CPUs, 16 GB RAM on the SMU `msc` partition) is the reason for this split. If you run on a multi-GPU node you can raise `max_concurrent_trials` for the Transformer models to match the GPU count, or experiment with fractional `{"gpu": 0.5}` allocation to share a GPU between two small SASRec/TiSASRec trials (expected gain is modest at this model size because PyTorch serialises kernels on the default CUDA stream).
-
-#### Grid Search Rationale
-
-**Random Forest** (3 trials): The FAR-Trans reference code hardcodes `n_estimators=20` with no documented tuning. The grid `[20, 50, 75]` keeps 20 as the paper anchor and searches moderately larger ensembles.
-
-**LightGCN** (32 trials): Grid is centered on the FAR-Trans reference config (`emb_dim=64`, `lr=0.01`, `keep_prob=0.6`, `weight_decay=1e-5`, `epochs=50`) and searches one alternative value for embedding size, layers, learning rate, weight decay, and keep probability.
-
-**SASRec** (8 trials): Grid is informed by the original SASRec paper (Kang & McAuley, ICDM 2018) whose reference implementation uses `emb_dim=50`, `num_heads=1`, `maxlen=50`, `dropout=0.5`, `lr=0.001`. Key choices:
-- `embedding_dimension=[64]`: fixed at 64 (the nearest power-of-2 to the paper's 50 that stays divisible by both 1 and 2 heads)
-- `number_of_attention_heads=[1, 2]`: the original paper uses 1 head; our default of 2 is searched against the paper value
-- `max_sequence_length=[50]`: fixed at the paper value; FAR-Trans users are sparse (>50% have 3 or fewer transactions), so longer sequences add compute without signal
-- `dropout_rate=[0.2, 0.5]`: the original SASRec paper uses 0.5; higher dropout is important for sparse financial interaction data
-- `number_of_blocks=[1, 2]`: paper uses 2; 1 is included as a cheaper option for sparse data
-
-**TiSASRec** (8 trials): Grid follows the original TiSASRec paper (Li, Wang & McAuley, WSDM 2020) whose reference implementation uses `emb_dim=50`, `num_heads=1`, `maxlen=50`, `dropout=0.2`, `time_span=256`, `lr=0.001`. Key choices:
-- `number_of_attention_heads=[1, 2]`: same rationale as SASRec
-- `number_of_blocks=[1, 2]`: same rationale as SASRec; paper uses 2 and 1 is included as a cheaper option for sparse data
-- `dropout_rate=[0.2]`: fixed at the TiSASRec paper value (lower than SASRec because time embeddings provide additional regularisation)
-- `time_bucket_count=[64, 256]`: the original paper searched `{1, 64, 256, 1024, 2048}`; 256 is the paper default and 64 is included because FAR-Trans transactions are infrequent (many users trade only a few times per year), making coarser time buckets potentially better
-- `max_sequence_length=[50]`: fixed for the same reason as SASRec
-
-**HybridDualHead** (18 trials): Transformer backbone is fixed at the TiSASRec default config (update these values after TiSASRec tuning if the best config differs). The search targets only the novel dual-head parameters:
-- `profitability_hidden_dimension=[32, 64]`: searches a smaller vs. larger MLP for the profitability head
-- `loss_lambda=[0.1, 0.5, 1.0]`: controls the training trade-off between interest loss (BCE) and profit loss (MSE); 0.5 is the symmetric midpoint anchor
-- `inference_alpha=[0.3, 0.5, 0.7]`: controls the scoring blend at recommendation time; anchored at 0.5 (equal weight) and searched asymmetrically towards interest (0.7) and profit (0.3)
+- `risk_classification.py`: builds `dict[asset_id, ordinal_band]` from `asset_information.csv` and `close_prices.csv`. The current default uses a single (full-period) volatility-quartile mapping for stocks; per-time-point refitting is a planned sensitivity check.
+- `customer_profile.py`: builds `dict[customer_id, CustomerProfile]` from `customer_information.csv`. Maps `Predicted_*` risk levels onto the same ordinal scale as declared ones, with a flag.
+- `discordance.py`: pairwise `d(b_u, b_i)`, `is_profile_coherent` predicate, and a transaction-level annotator used by the EDA notebook and the panel regression.
 
 ### Pipeline Orchestration
 
-**`src/pipeline/preprocessing.py`** (Step 0): The entry point for data preparation. `run_preprocessing` loads all raw CSVs, generates 69 evaluation splits and 3 validation splits, builds user purchase sequences for each split, and saves everything to disk as JSON files. Also provides loader functions (`load_evaluation_splits`, `load_validation_splits`, `load_evaluation_sequences`, etc.) that all downstream modules use.
+```sh
+uv run poe preprocess              # Step 0: generate splits to data/splits/
+uv run poe eda                     # Step 1: dataset audit -> outputs/eda/profile_coherence/
+uv run poe evaluate-baselines      # Step 2: Ray grid sweep + decomposition (one command, all artefacts)
+```
 
-**`src/pipeline/runner.py`** (Step 2): The main experiment loop. `run_all_experiments` loads evaluation splits, close prices, and sequences from disk, resolves the model set via `MODEL_REGISTRY` (optionally filtered by `--models`), and for each model: constructs the recommender via `build_recommender(name, config=provided or paper-default)`, then for each split calls `model.train_on_split`, `generate_recommendations`, and `evaluate_model_on_split`. The runner is data-driven: loop bodies look up `MODEL_REGISTRY[name].needs_indicators` / `needs_sequences` to decide which auxiliary data to load, so adding a new model to the registry automatically makes it runnable without editing runner code.
+`evaluate-baselines` runs end-to-end: the Ray grid sweep, the per-trial parquet dump, the best-trial selection, the headline tables, and the scatter plots. The decomposition step (`src/analysis/baseline_decomposition.py`) runs automatically at the end. To re-run only the decomposition without retraining, call it directly:
 
 ```sh
-uv run poe preprocess              # Step 0: generate all splits to data/splits/
-uv run poe analyze-sequences       # (optional) sequence-length distribution analysis
-uv run poe tune --models random_forest light_gcn   # Step 1: hyperparameter search
-uv run poe run --config outputs/configs/.../best_hyperparameters.json  # Step 2: evaluate
-uv run poe run --models random_forest light_gcn    # or skip tuning, use paper defaults
+uv run python -m src.analysis.baseline_decomposition --run-timestamp <YYYYMMDD_HHMMSS>
 ```
 
-### Data Flow Summary
+The Profile-Coherent LightGCN pipeline will be a separate poe task added later.
 
-```
-Raw CSVs (transactions, close_prices, customer_info, asset_info, markets)
-    |
-    | loading.py
-    v
-DataFrames
-    |
-    | splitting.py                          sequences.py
-    v                                       v
-69 TemporalSplitData                        User purchase sequences
-(training_interactions,                     (chronological (asset_id, date) pairs)
- test_interactions,
- eligible users/assets,                     technical_indicators.py
- ID-to-index mappings)                      v
-    |                                       Indicator features per asset
-    |
-    +---> RandomForestBaseline              (uses indicators + price lookup for ROI targets)
-    +---> LightGCNBaseline                  (uses interaction graph from training_interactions)
-    +---> SASRecRecommender                 (uses purchase sequences)
-    +---> TiSASRecRecommender               (uses sequences + timestamps)
-    +---> HybridDualHeadRecommender         (uses sequences + timestamps + indicators + ROI targets)
-    |
-    | recommend_for_user per eligible user
-    v
-Recommendations: dict[user_id, list[asset_id]]
-    |
-    | metrics.py
-    v
-EvaluationResult (nDCG@10, ROI@10)
-```
+### Baseline Grid Sweep
 
-### Preprocessed Data Layout
+`src/pipeline/baseline_evaluation.py` runs a Ray-driven grid sweep across RF (6 trials) and LightGCN (8 trials). Each trial is a **full 69-split evaluation**, so the per-trial summary is directly comparable to the FAR-Trans paper's Table 2.
 
-```
-data/splits/
-    metadata.json
-    evaluation/                 # 69 TemporalSplitData JSON files
-        split_000.json ... split_068.json
-    validation/                 # 3 validation split JSON files
-        split_000.json ... split_002.json
-    sequences/                  # Chronological user purchase sequences per split
-        evaluation/
-            split_000.json ... split_068.json
-        validation/
-            split_000.json ... split_002.json
-```
+| Model | Grid axes | Trials | Primary metric |
+|---|---|---|---|
+| Random Forest | `number_of_estimators in {20, 50, 100}` x `max_depth in {None, 15}`; other axes pinned to paper | 6 | ROI@10 |
+| LightGCN | `embedding_dimension in {64, 128}` x `number_of_layers in {2, 3}` x `learning_rate in {1e-2, 1e-3}`; other axes pinned to paper | 8 | nDCG@10 |
+
+**Paper defaults are explicitly included** in both grids (`n_estimators=20, max_depth=None` for RF; `emb_dim=64, layers=3, lr=1e-2` for LightGCN), so benchmark replication is always one of the trial points. The LightGCN grid is deliberately chosen to be cheap enough that the Profile-Coherent LightGCN ablation can mirror it across {profile-embedding on/off} x {L_PC on/off} (8 x 4 = 32 trials) within one SLURM job.
+
+Outputs after one run:
+
+- `outputs/results/evaluation/{model}/{timestamp}/{trial_id}/per_split_metrics.csv`: per-trial per-split scalar metrics.
+- `outputs/results/evaluation/{model}/{timestamp}/{trial_id}/recommendations.parquet`: flat per-recommendation rows with `monthly_return` and `is_relevant` precomputed; the source of truth for any future decomposition or re-aggregation.
+- `outputs/results/tuning/{model}/{timestamp}.csv`: per-trial roll-up (one row per trial, four averaged metrics).
+- `outputs/configs/{timestamp}/best_hyperparameters.json`: best trial per primary metric.
+- `outputs/analysis/baseline_decomposition/{timestamp}/`:
+    - `main_results.csv`: best trial per model with means and standard deviations across splits.
+    - `decomposition.csv`: profile-coherent vs profile-discordant ROI breakdown per model.
+    - `scatter_ndcg_vs_pc.png`, `scatter_pc_vs_roi.png`: trade-off scatter plots.
+    - `summary.json`: machine-readable headline numbers.
+
+#### Resource model
+
+The cluster job (`scripts/evaluate-baselines.sh`) requests `--gres=gpu:1` on an L40s. Ray distributes:
+
+- RF: 3 concurrent CPU trials (1 CPU each), so the 6 trials run as two waves of 3.
+- LightGCN: 4 concurrent GPU trials with `gpu = 1 / max_concurrent_trials = 0.25` fractional sharing on the single L40s, so the 8 trials run as two waves of 4.
+
+#### Validation/Evaluation Window Overlap (Known Caveat)
+
+The legacy validation-split tuning had a known overlap issue between validation and early evaluation splits. The new design eliminates this entirely: every trial is a full 69-split evaluation, so there is no separate validation set whose splits could overlap with the benchmark.
+
+## Project Roadmap
+
+Tasks for the thesis. Items marked `[x]` are done; `[ ]` is pending.
+
+- [x] `src/profile_coherence/risk_classification.py`: hierarchical asset to MiFID 4-band mapping (mutual-fund subcategory, bond subcategory, stock volatility-quartile fallback).
+- [x] `src/profile_coherence/discordance.py`: pairwise discordance, coherence predicate, transaction-level annotator.
+- [x] `src/profile_coherence/customer_profile.py`: parses declared / predicted / `Not_Available` MiFID risk levels.
+- [x] `src/analysis/eda_profile_coherence.py`: dataset audit (asset and customer band distributions, transaction-level discordance, per-customer self-discordance, segment and year breakdowns, hierarchy vs pure-volatility sensitivity). See [Dataset Audit Findings](#dataset-audit-findings).
+- [x] `compute_profile_coherence_at_k` in `src/evaluation/metrics.py`, wired into `EvaluationResult` and `evaluate_model_on_split`.
+- [x] `src/pipeline/baseline_evaluation.py`: Ray-driven grid where each trial is a full 69-split eval. Paper defaults are guaranteed grid points (RF: `n_estimators in {20, 50, 100}` x `max_depth in {None, 15}`, ROI@10 primary, 6 trials; LightGCN: `embedding_dimension in {64, 128}` x `number_of_layers in {2, 3}` x `learning_rate in {1e-2, 1e-3}`, nDCG@10 primary, 8 trials).
+- [x] `src/analysis/baseline_decomposition.py`: best-trial selection, profile-coherent vs profile-discordant ROI breakdown, scatter plots, summary JSON. Runs automatically as the final step of `evaluate-baselines`.
+- [x] `ProfileCoherentLightGCNBaseline` implemented (`src/models/profile_coherent_lgcn.py`).
+- [ ] Submit `scripts/evaluate-baselines.sh` to the SMU L40s GPU. One sbatch produces per-trial artefacts, the per-trial roll-up CSV, the best-config JSON, the main results table, the decomposition table, and the scatter plots.
+- [ ] Update this README's "Dataset Audit Findings" section with the baseline-audit table once the GPU job completes.
+- [ ] `src/analysis/panel_regression.py`: per-transaction panel, OLS with cluster-robust SEs, point estimate + 95% CI + effect-size translation (a 1-band increase in discordance corresponds to X% lower realised excess return).
+- [ ] `src/pipeline/profile_coherent_evaluation.py`: mirrors the baseline pipeline but runs the Profile-Coherent LightGCN grid. Toggles `(profile_embedding_enabled, profile_coherence_enabled) in {False, True}^2` (the 2x2 ablation), with `profile_coherence_lambda in {0.1, 0.5, 1.0}` when the regulariser is on. Each trial = full 69-split evaluation, same output layout as the baseline pipeline.
+- [ ] Re-train Profile-Coherent LightGCN on all 69 splits with the best ablation cell.
+- [ ] Main results table (3 rows: RF, LightGCN, Profile-Coherent LightGCN x 4 metrics).
+- [ ] Ablation table (4 rows: 2x2 of profile-embedding x L_PC x 4 metrics).
+- [ ] Sensitivity table: ordinal vs squared discordance, profile-feature subsets, volatility-window length, declared-only vs declared+predicted profiles.
+- [ ] Final writeup polish.
+- [ ] Defense slides.
+
+## Expected Outputs
+
+### Tables
+
+1. **Table 1** (main results): `Model x {nDCG@10, ROI@10, Recall@10, PC@10}` for RF, LightGCN, Profile-Coherent LightGCN over 69 splits, mean +/- standard deviation across splits.
+2. **Table 2** (ablation): `LightGCN-variant x metrics` with 2x2 toggle of profile-embedding and L_PC.
+3. **Table 3** (sensitivity): ordinal vs squared `d`, profile-feature subsets, volatility window, declared-only vs declared+predicted MiFID.
+4. **Table 4** (panel regression): coefficient on `d`, with controls and fixed effects, cluster-robust SE.
+
+### Figures
+
+1. **Figure 1**: distribution of asset risk-class assignments under the hierarchical mapping.
+2. **Figure 2**: per-customer self-discordance histogram, by `customerType` and `riskLevel`.
+3. **Figure 3**: ROI by discordance-bin (0, 1, 2, 3) on actual transactions.
+4. **Figure 4**: decomposition: per-baseline ROI@10 on profile-coherent vs discordant top-10 subsets.
+5. **Figure 5**: (nDCG@10, PC@10) scatter and (PC@10, ROI@10) scatter, with one point per baseline.
+6. **Figure 6**: `lambda_pc` sweep on Profile-Coherent LightGCN: Pareto curve over (nDCG, ROI, PC).
+
+## Risks and Mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Volatility-quartile risk-class binning is sensitive to window length | Medium | Could weaken claim | Sensitivity row in Table 3, fix window before looking at headline numbers to avoid p-hacking |
+| Discordance-vs-return regression coefficient is statistically insignificant | Medium | Weakens RQ2 | Report direction of effect even if non-significant; the audit (RQ1) and method (RQ4) stand independently |
+| Profile-Coherent LightGCN has worse PC@10 than expected (the loss may be too soft) | Low-Medium | Weakens RQ4 | The 2x2 ablation will isolate which component is at fault; can fall back to a re-ranker variant for the actionability proof |
+| Mutual-fund subcategory mapping is too coarse (e.g., "Other" / "Structured" categories) | Medium | Adds noise to risk-class | Volatility tiebreaker for "Other"/"Structured" rows; report % of universe affected |
+| `Predicted_*` risk levels behave differently from declared | Medium | Could bias PC@10 | Sensitivity row pooling vs separating; default keeps both pooled |
+| Time available is not enough for the model contribution | Medium | Truncates RQ4 | Audit (RQ1-3) + metric is publishable on its own; method is the cherry on top, not the foundation |
 
 ## Working with this Repository
 
@@ -792,122 +432,89 @@ data/splits/
 
 ### Setup
 
-1. Clone the repository and install all dependencies:
-
 ```sh
-uv sync
-```
-
-2. Install git hooks (runs lint, format, and typecheck before every commit):
-
-```sh
-uv run poe setup
-```
-
-3. Activate the virtual environment, then install graphify:
-
-```sh
+uv sync                               # install dependencies
+uv run poe setup                      # install lefthook git hooks
 source .venv/bin/activate
-pip install graphifyy
+pip install graphifyy                 # optional: knowledge-graph integration
+graphify claude install               # optional: Claude Code integration
 ```
 
-4. (Optional) If using [Claude Code](https://claude.ai/claude-code), install the graphify Claude integration:
+### Running the Full Pipeline
+
+The thesis pipeline is three commands. The third one is the single end-to-end driver: it runs the Ray grid sweep, dumps per-trial metrics + per-recommendation parquet, picks the best trial per primary metric, runs the decomposition, prints the headline tables, and saves the scatter plots, all in one invocation.
 
 ```sh
-graphify claude install
+uv run poe preprocess              # one-off: generate 69 evaluation splits
+uv run poe eda                     # dataset audit -> outputs/eda/profile_coherence/
+uv run poe evaluate-baselines      # full grid sweep + decomposition (single command)
+```
+
+The recommended way to run `evaluate-baselines` is on the GPU cluster (see below); locally on CPU it is workable for smoke tests with `--splits-limit` and `--max-concurrent-trials`.
+
+### Common Tasks
+
+```sh
+uv run poe lint                                                  # ruff
+uv run poe type                                                  # ty
+uv run poe test                                                  # pytest
+uv run poe format                                                # ruff format
+
+uv run poe evaluate-baselines --splits-limit 2 --max-concurrent-trials 1   # smoke test
+uv run python -m src.analysis.baseline_decomposition --run-timestamp <ts>   # re-run decomposition only
 ```
 
 ### Git Hooks
 
-[Lefthook](https://github.com/evilmartians/lefthook) manages all git hooks:
+[Lefthook](https://github.com/evilmartians/lefthook) manages the hooks:
 
-- **Pre-commit**: runs lint, format, and typecheck. The commit is aborted if any check fails.
-- **Post-commit**: rebuilds the graphify knowledge graph for changed code files.
-- **Post-checkout**: rebuilds the graphify knowledge graph when switching branches.
+- **Pre-commit**: lint, format, typecheck.
+- **Post-commit / post-checkout**: rebuild the graphify knowledge graph for changed code files.
 
 ## GPU Cluster
 
-### Initial Setup
+The SMU `msc` partition (1 L40s GPU, 4 CPUs, 32 GB RAM, 5-day max job time, `studentqos`) is the standard target for the grid sweep. SSH via `samuel.sim.2024@origami.smu.edu.sg` (GlobalVPN required).
 
-1. Connect via **GlobalVPN** to reach the SMU network.
-2. SSH into the cluster: `ssh samuel.sim.2024@origami.smu.edu.sg`
-   - A bash alias `gpu` is configured locally to connect via `sshpass`.
+### Submitting the Pipeline
 
-### Account Details
-
-```
-Account name                    : msc
-Partition                       : msc
-QOS                             : studentqos
-Scratch directory               : /common/scratch/users/s/samuel.sim.2024/
-Home directory quota            : 120GB
-Scratch file quota              : 100,000 files
-```
-
-#### Resource Limits (studentqos)
-
-| Resource              | Limit       |
-|-----------------------|-------------|
-| Max running jobs      | 2           |
-| Max submitted jobs    | 4           |
-| CPUs per job          | 4           |
-| GPUs per job          | 1           |
-| RAM per job           | 32 GB       |
-| Max job time          | 5 days      |
-
-### File Transfers (SCP)
-
-Run these from your **local** machine.
+The cluster job is a single sbatch:
 
 ```bash
-# Local file to cluster
+sbatch scripts/evaluate-baselines.sh
+```
+
+`scripts/evaluate-baselines.sh` is the full pipeline driver. It loads the cluster Python and CUDA modules, activates the venv, and runs `uv run poe evaluate-baselines --device cuda`. That single command produces every artefact under `outputs/` (see "Pipeline Orchestration" above for the full list), including the headline tables and scatter plots from the decomposition step.
+
+Job email notifications go to the addresses listed in the `#SBATCH --mail-user` line. Live job output streams to `outputs/{user}.{jobid}.out` on the cluster filesystem.
+
+### File Transfers
+
+```bash
+# Local file -> cluster
 scp /path/to/file samuel.sim.2024@origami.smu.edu.sg:~/path/to/destination
 
-# Local folder to cluster
+# Local folder -> cluster
 scp -r /path/to/folder samuel.sim.2024@origami.smu.edu.sg:~/path/to/destination
 
-# Cluster file to local
-scp samuel.sim.2024@origami.smu.edu.sg:~/path/to/file /path/to/destination
-
-# Cluster folder to local
-scp -r samuel.sim.2024@origami.smu.edu.sg:~/path/to/folder /path/to/destination
+# Pull artefacts back from cluster -> local for analysis
+scp -r samuel.sim.2024@origami.smu.edu.sg:~/SMU-Capstone/outputs ./outputs
 ```
-
-### Job Submission
-
-#### Shell Script Template
-
-The sbatch template is at [`scripts/far-tuning.sh`](scripts/far-tuning.sh), pre-configured with the `msc` account details. To create a new job script, copy it and update:
-
-- `--job-name` : a descriptive name for the job
-- `--time` : wall-clock limit (format: `DD-HH:MM:SS`)
-- `--mem` : memory allocation (up to 32 GB)
-- The `srun` command at the bottom with your actual script path
-
-#### Submitting
-
-```bash
-chmod +x job.sh
-sbatch job.sh
-```
-
-An output log will appear in the working directory set in the script. Email notifications are sent when the job starts, completes, or fails based on script.
-
-### GPU Monitoring
-
-Add `srun whichgpu` before your main workload in the batch script to log which GPU and compute node you were assigned. Then check utilization on the [Grafana dashboard](https://green.smu.edu.sg/gpustats) (requires SMU network/VPN), selecting the matching node and GPU number.
 
 ### Useful Commands
 
 ```bash
-myinfo                  # Account details, quotas, and partition info
-myqueue                 # Status of your current jobs
+myinfo                  # Account details, quotas, partition info
+myqueue                 # Status of current jobs
 myjob <jobid>           # Detailed info on a running/recent job (last 5 min)
 mypastjob <days>        # Job history for the past N days (max 30)
 ```
 
 ## References
 
-- Sanz-Cruzado, J., Droukas, N., & McCreadie, R. (2024). *FAR-Trans: An Investment Dataset for Financial Asset Recommendation*. arXiv:2407.08692.
-- Kang, W.-C., & McAuley, J. (2018). *Self-Attentive Sequential Recommendation*. IEEE ICDM 2018.
-- Li, J., Wang, Y., & McAuley, J. (2020). *Time Interval Aware Self-Attention for Sequential Recommendation*. WSDM 2020.
+- Sanz-Cruzado, J., Droukas, N., and McCreadie, R. (2024). *FAR-Trans: An Investment Dataset for Financial Asset Recommendation*. arXiv:2407.08692.
+- Sanz-Cruzado, J., McCreadie, R., Droukas, N., Macdonald, C., and Ounis, I. (2022). *On Transaction-Based Metrics as a Proxy for Profitability of Financial Asset Recommendations*. FinRec @ RecSys 2022.
+- He, X., Deng, K., Wang, X., Li, Y., Zhang, Y., and Wang, M. (2020). *LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation*. SIGIR 2020.
+- Barber, B. M., and Odean, T. (2000). *Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors*. Journal of Finance 55(2).
+- Barber, B. M., and Odean, T. (2008). *All That Glitters: The Effect of Attention and News on the Buying Behavior of Individual and Institutional Investors*. Review of Financial Studies 21(2).
+- Kumar, A. (2009). *Who Gambles in the Stock Market?* Journal of Finance 64(4).
+- Kim, J., Lee, S., et al. (2025). *Risk-Aware Utility Re-Ranking for Financial Asset Recommendation*. (Working paper / proceedings; see `papers/Risk-Aware Utility Re-Ranking for Financial Asset Recommendation/paper.md`.)

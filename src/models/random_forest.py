@@ -1,12 +1,4 @@
-"""Random Forest profitability prediction baseline matching FAR-Trans reference.
-
-Training: uses a pre-computed indicator DataFrame (one row per asset per trading day).
-For each row, the target is the forward return months*21 trading days ahead.
-All rows before (train_date - months*30 days) are used as training examples.
-
-Inference: looks up indicators at the exact recommendation date, predicts ROI scores,
-and ranks assets globally (user-agnostic).
-"""
+"""Price-based Random Forest profitability regressor."""
 
 import datetime
 

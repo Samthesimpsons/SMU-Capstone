@@ -1,1 +1,1 @@
-"""Evaluation metrics (nDCG@k, ROI@k) for recommendation quality."""
+"""Evaluation metrics: nDCG@k, ROI@k, Recall@k, PC@k."""

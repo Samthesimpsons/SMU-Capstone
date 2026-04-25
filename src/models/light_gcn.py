@@ -1,25 +1,4 @@
-"""LightGCN collaborative filtering model with BPR loss.
-
-Faithful to the original paper (He et al., SIGIR 2020): symmetric
-`D^{-1/2} A D^{-1/2}` adjacency normalization with no self-loops, and the
-final embedding is the unweighted mean of `E^{(0)}, E^{(1)}, ..., E^{(K)}`.
-This matches `torch_geometric.nn.LGConv`'s canonical implementation.
-
-The FAR-Trans paper (https://github.com/JavierSanzCruza/far-trans) runs
-LightGCN through the Beta-RecSys library
-(https://github.com/beta-team/community/blob/master/beta_recsys/README.md),
-whose `beta_rec/models/lightgcn.py` + `beta_rec/data/base_data.py:337-360`
-applies NGCF-style asymmetric `D^{-1}(A + I)` normalization with added
-self-loops. That is a bug versus the original LightGCN paper (Eq. 3); we
-deliberately do not replicate it.
-
-We also deliberately do NOT track the best-validation-epoch checkpoint the
-way Beta-RecSys does. Upstream `LightGCN_Train.test()` reloads weights from
-the epoch with the highest nDCG on a "validation" set that FAR-Trans sets
-equal to the test set (see `data/splitted_data.py:41` in the FAR-Trans
-repo), which is leaky model selection. Our `train_on_split` trains the
-full `number_of_epochs` and uses the last-epoch weights for inference.
-"""
+"""LightGCN collaborative filtering with BPR loss."""
 
 import random
 

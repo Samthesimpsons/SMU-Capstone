@@ -1,1 +1,1 @@
-"""Recommender implementations: Random Forest, LightGCN, SASRec, TiSASRec, and HybridDualHead."""
+"""Recommender implementations: Random Forest, LightGCN, and Profile-Coherent LightGCN."""

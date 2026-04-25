@@ -1,8 +1,7 @@
-"""Configuration classes for data paths, splitting, models, and experiments."""
+"""Configuration classes for data paths, models, and experiments."""
 
 from pathlib import Path
 
-from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -38,81 +37,32 @@ class LightGCNConfig(BaseSettings):
     batch_size: int = 1024
 
 
-class SASRecConfig(BaseSettings):
-    """Hyperparameters for the SASRec sequential recommender."""
+class ProfileCoherentLightGCNConfig(BaseSettings):
+    """Hyperparameters for the Profile-Coherent LightGCN extension.
+
+    Adds two scalar controls on top of the LightGCN backbone:
+    - `profile_embedding_enabled`: when False the profile-conditioning embedding
+      tables are skipped, leaving the user representation identical to vanilla
+      LightGCN. Used for the 2x2 ablation row.
+    - `profile_coherence_enabled` and `profile_coherence_lambda`: when the flag
+      is False the regulariser term is dropped entirely. The lambda controls the
+      magnitude when the flag is True.
+    """
 
     embedding_dimension: int = 64
-    max_sequence_length: int = 50
-    number_of_attention_heads: int = 2
-    number_of_blocks: int = 2
-    dropout_rate: float = 0.2
-    learning_rate: float = 1e-3
-    number_of_epochs: int = 200
-    batch_size: int = 128
+    number_of_layers: int = 3
+    learning_rate: float = 0.01
+    weight_decay: float = 1e-5
+    keep_probability: float = 0.6
+    number_of_epochs: int = 50
+    batch_size: int = 1024
 
-    @model_validator(mode="after")
-    def validate_embedding_divisible_by_heads(self) -> "SASRecConfig":
-        """Reject configs where the embedding dimension does not evenly split across heads."""
-        if self.embedding_dimension % self.number_of_attention_heads != 0:
-            raise ValueError(
-                f"embedding_dimension ({self.embedding_dimension}) must be"
-                f" divisible by number_of_attention_heads"
-                f" ({self.number_of_attention_heads})"
-            )
-        return self
+    profile_embedding_dimension: int = 16
+    profile_embedding_enabled: bool = True
 
-
-class TiSASRecConfig(BaseSettings):
-    """Hyperparameters for the TiSASRec time-aware sequential recommender."""
-
-    embedding_dimension: int = 64
-    max_sequence_length: int = 50
-    number_of_attention_heads: int = 2
-    number_of_blocks: int = 2
-    dropout_rate: float = 0.2
-    learning_rate: float = 1e-3
-    number_of_epochs: int = 200
-    batch_size: int = 128
-    time_bucket_count: int = 256
-
-    @model_validator(mode="after")
-    def validate_embedding_divisible_by_heads(self) -> "TiSASRecConfig":
-        """Reject configs where the embedding dimension does not evenly split across heads."""
-        if self.embedding_dimension % self.number_of_attention_heads != 0:
-            raise ValueError(
-                f"embedding_dimension ({self.embedding_dimension}) must be"
-                f" divisible by number_of_attention_heads"
-                f" ({self.number_of_attention_heads})"
-            )
-        return self
-
-
-class HybridDualHeadConfig(BaseSettings):
-    """Hyperparameters for the hybrid dual-head recommender."""
-
-    embedding_dimension: int = 64
-    max_sequence_length: int = 50
-    number_of_attention_heads: int = 2
-    number_of_blocks: int = 2
-    dropout_rate: float = 0.2
-    learning_rate: float = 1e-3
-    number_of_epochs: int = 200
-    batch_size: int = 128
-    time_bucket_count: int = 256
-    profitability_hidden_dimension: int = 64
-    loss_lambda: float = 0.5
-    inference_alpha: float = 0.5
-
-    @model_validator(mode="after")
-    def validate_embedding_divisible_by_heads(self) -> "HybridDualHeadConfig":
-        """Reject configs where the embedding dimension does not evenly split across heads."""
-        if self.embedding_dimension % self.number_of_attention_heads != 0:
-            raise ValueError(
-                f"embedding_dimension ({self.embedding_dimension}) must be"
-                f" divisible by number_of_attention_heads"
-                f" ({self.number_of_attention_heads})"
-            )
-        return self
+    profile_coherence_enabled: bool = True
+    profile_coherence_lambda: float = 0.5
+    profile_coherence_squared: bool = False
 
 
 class ExperimentConfig(BaseSettings):
@@ -123,10 +73,4 @@ class ExperimentConfig(BaseSettings):
     seed: int = 42
 
 
-ModelConfig = (
-    RandomForestConfig
-    | LightGCNConfig
-    | SASRecConfig
-    | TiSASRecConfig
-    | HybridDualHeadConfig
-)
+ModelConfig = RandomForestConfig | LightGCNConfig | ProfileCoherentLightGCNConfig

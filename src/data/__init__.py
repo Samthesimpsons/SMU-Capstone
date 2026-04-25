@@ -1,1 +1,1 @@
-"""Raw data loading, interaction sets, sequence building, and temporal splitting."""
+"""Raw data loading, interaction sets, and temporal splitting."""

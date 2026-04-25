@@ -1,16 +1,8 @@
-"""Pydantic schemas for temporal splits, sequences, and evaluation results."""
+"""Pydantic schemas for temporal splits, customer profiles, and evaluation results."""
 
 from datetime import date
 
 from pydantic import BaseModel
-
-
-class SequenceData(BaseModel):
-    """Per-user chronologically ordered purchase sequences for a split."""
-
-    split_index: int
-    time_point: date
-    user_sequences: dict[str, list[tuple[str, date]]]
 
 
 class TemporalSplitData(BaseModel):
@@ -29,6 +21,24 @@ class TemporalSplitData(BaseModel):
     asset_id_to_index: dict[str, int]
 
 
+class CustomerProfile(BaseModel):
+    """Regulatory profile signals available for a single customer.
+
+    `risk_band` is the ordinal MiFID II level on a 4-band scale:
+    Conservative=0, Income=1, Balanced=2, Aggressive=3. `None` means the
+    customer has no usable risk signal (raw `Not_Available` in FAR-Trans).
+    The `predicted_*` flag distinguishes regression-imputed values from
+    questionnaire-declared ones, which the FAR-Trans paper documents as a
+    fallback for customers who never completed the MiFID survey.
+    """
+
+    customer_id: str
+    risk_band: int | None
+    risk_band_is_predicted: bool
+    customer_type: str | None
+    investment_capacity: str | None
+
+
 class EvaluationResult(BaseModel):
     """Evaluation metrics for a model on a single temporal split."""
 
@@ -38,3 +48,4 @@ class EvaluationResult(BaseModel):
     ndcg_at_k: float
     roi_at_k: float
     recall_at_k: float
+    profile_coherence_at_k: float

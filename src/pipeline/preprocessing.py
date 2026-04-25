@@ -8,10 +8,9 @@ from typing import Literal
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
-from src.config.schemas import SequenceData, TemporalSplitData
+from src.config.schemas import TemporalSplitData
 from src.config.settings import DataPaths
 from src.data.loading import load_all, load_close_prices
-from src.data.sequences import build_user_sequences
 from src.data.splitting import generate_all_splits
 
 VALIDATION_DATES: list[date] = [
@@ -65,44 +64,6 @@ def load_preprocessed_close_prices(splits_root: Path) -> pd.DataFrame:
     metadata = json.loads(metadata_path.read_text())
     close_prices_path = Path(metadata["close_prices_path"])
     return load_close_prices(close_prices_path)
-
-
-def _save_sequence_data(sequence_data: SequenceData, path: Path) -> None:
-    """Serialize a single SequenceData to a JSON file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(sequence_data.model_dump_json(indent=2))
-
-
-def _load_sequence_data(path: Path) -> SequenceData:
-    """Deserialize a single SequenceData from a JSON file."""
-    return SequenceData.model_validate_json(path.read_text())
-
-
-def _save_all_sequence_data(
-    sequence_data_list: list[SequenceData],
-    output_directory: Path,
-) -> None:
-    """Save a list of SequenceData to numbered JSON files in a directory."""
-    output_directory.mkdir(parents=True, exist_ok=True)
-    for sequence_data in sequence_data_list:
-        filename = f"split_{sequence_data.split_index:03d}.json"
-        _save_sequence_data(sequence_data, output_directory / filename)
-
-
-def _load_all_sequence_data(directory: Path) -> list[SequenceData]:
-    """Load all sequence JSON files from a directory, sorted by split index."""
-    sequence_files = sorted(directory.glob("split_*.json"))
-    return [_load_sequence_data(path) for path in sequence_files]
-
-
-def load_evaluation_sequences(splits_root: Path) -> list[SequenceData]:
-    """Load evaluation sequence data from the preprocessing output directory."""
-    return _load_all_sequence_data(splits_root / "sequences" / "evaluation")
-
-
-def load_validation_sequences(splits_root: Path) -> list[SequenceData]:
-    """Load validation sequence data from the preprocessing output directory."""
-    return _load_all_sequence_data(splits_root / "sequences" / "validation")
 
 
 def _snap_to_trading_day(
@@ -192,7 +153,6 @@ def run_preprocessing(
     datasets = load_all(data_paths)
     transactions = datasets["transactions"]
     close_prices = datasets["close_prices"]
-    buy_transactions = transactions[transactions["transactionType"] == "Buy"].copy()
 
     close_prices_path = data_paths.data_directory / data_paths.close_prices_file
 
@@ -205,34 +165,6 @@ def run_preprocessing(
     validation_splits = _generate_validation_splits(transactions, close_prices)
     save_splits(validation_splits, output_directory / "validation")
     print(f"  Saved {len(validation_splits)} validation splits")
-
-    print("Generating evaluation sequence data...")
-    evaluation_sequences = [
-        SequenceData(
-            split_index=split.split_index,
-            time_point=split.time_point,
-            user_sequences=build_user_sequences(buy_transactions, split.time_point),
-        )
-        for split in evaluation_splits
-    ]
-    _save_all_sequence_data(
-        evaluation_sequences, output_directory / "sequences" / "evaluation"
-    )
-    print(f"  Saved {len(evaluation_sequences)} evaluation sequence files")
-
-    print("Generating validation sequence data...")
-    validation_sequences = [
-        SequenceData(
-            split_index=split.split_index,
-            time_point=split.time_point,
-            user_sequences=build_user_sequences(buy_transactions, split.time_point),
-        )
-        for split in validation_splits
-    ]
-    _save_all_sequence_data(
-        validation_sequences, output_directory / "sequences" / "validation"
-    )
-    print(f"  Saved {len(validation_sequences)} validation sequence files")
 
     _save_metadata(
         output_directory,

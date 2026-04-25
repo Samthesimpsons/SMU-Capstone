@@ -1,1 +1,1 @@
-"""SMU capstone package: FAR-Trans replication and dual-head recommender extension."""
+"""Profile-coherent financial asset recommendation on FAR-Trans."""

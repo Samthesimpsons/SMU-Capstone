@@ -1,9 +1,4 @@
-"""Technical indicator computation matching the FAR-Trans reference implementation.
-
-Produces a daily indicator DataFrame with 30 features per (asset, date) row,
-using multi-horizon rolling windows (21d, 63d, 126d) and standard formulas
-for RSI (EWM), MACD, DCO, Sharpe, etc.
-"""
+"""Technical-indicator features per (asset, date)."""
 
 import math
 

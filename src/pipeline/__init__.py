@@ -1,1 +1,1 @@
-"""Pipeline orchestration: preprocessing, training runner, and tuning."""
+"""Pipeline orchestration: preprocessing and baseline grid evaluation."""
