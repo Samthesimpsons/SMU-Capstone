@@ -4,7 +4,6 @@
   "output_directory": "outputs/analysis/baseline_decomposition/20260427_122215",
   "models": [
     "light_gcn",
-    "profile_coherent_light_gcn",
     "random_forest"
   ],
   "main_results": [
@@ -24,23 +23,6 @@
       "profile_coherence_at_k_std": 0.00794056810605602,
       "profile_coherence_lift_at_k_mean": 1.170561424224297,
       "profile_coherence_lift_at_k_std": 0.018004302136634624
-    },
-    {
-      "model": "profile_coherent_light_gcn",
-      "display_name": "Profile-Coherent LightGCN",
-      "best_trial_id": "7b1e6_00000",
-      "primary_metric": "average_ndcg",
-      "split_count": 69,
-      "ndcg_at_k_mean": 0.3288722217663808,
-      "ndcg_at_k_std": 0.07375004424443084,
-      "roi_at_k_mean": -0.005524863317110651,
-      "roi_at_k_std": 0.042874544969336306,
-      "recall_at_k_mean": 0.4938263259068683,
-      "recall_at_k_std": 0.08342401810390099,
-      "profile_coherence_at_k_mean": 0.7934142090993024,
-      "profile_coherence_at_k_std": 0.008031412427826819,
-      "profile_coherence_lift_at_k_mean": 1.1700413569910513,
-      "profile_coherence_lift_at_k_std": 0.018715300180696354
     },
     {
       "model": "random_forest",
@@ -74,20 +56,6 @@
       "strict_coherent_recommendations": 436950,
       "mean_monthly_return_strict_coherent": -0.008729402159588978,
       "mean_monthly_return_strict_discordant": -0.007358811165325849
-    },
-    {
-      "model": "profile_coherent_light_gcn",
-      "display_name": "Profile-Coherent LightGCN",
-      "total_recommendations": 1372010,
-      "coherent_recommendations": 1088537,
-      "discordant_recommendations": 283473,
-      "coherent_share": 0.7933885321535558,
-      "mean_monthly_return_overall": -0.00794456214350078,
-      "mean_monthly_return_coherent": -0.00857631274055246,
-      "mean_monthly_return_discordant": -0.005518638335367928,
-      "strict_coherent_recommendations": 436427,
-      "mean_monthly_return_strict_coherent": -0.008926254168209627,
-      "mean_monthly_return_strict_discordant": -0.007486626390854989
     },
     {
       "model": "random_forest",

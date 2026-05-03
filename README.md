@@ -1,6 +1,6 @@
 # SMU Capstone: Profile Coherence as a Diagnostic and Design Lens for Financial Asset Recommendation
 
-A measurement framework and a profile-aware extension of LightGCN for the FAR-Trans dataset. The thesis introduces **Profile Coherence at k (PC@k)** as a new evaluation axis, audits how profile-coherent existing FAR baselines actually are, and proposes a minimal **Profile-Coherent LightGCN** that uses regulatory profile signals as both a conditioning input and a learning constraint. This README is the single source of truth for the project.
+A measurement framework for profile-aware financial asset recommendation on the FAR-Trans dataset. The thesis introduces **Profile Coherence at k (PC@k)** as a new evaluation axis and audits how profile-coherent existing FAR baselines (Random Forest, LightGCN) actually are. This README is the single source of truth for the project. RQ4 (the method axis) is being redefined; the implementation that previously sat against an earlier RQ4 has been removed pending the new question.
 
 ## Table of Contents
 
@@ -8,18 +8,13 @@ A measurement framework and a profile-aware extension of LightGCN for the FAR-Tr
 2. [Paper Summary: FAR-Trans](#paper-summary-far-trans)
 3. [Problem Statement](#problem-statement)
 4. [Research Questions](#research-questions)
-5. [Dataset Audit Findings](#dataset-audit-findings)
-6. [Novelty and Research Contributions](#novelty-and-research-contributions)
-7. [Proposed Approach](#proposed-approach)
-8. [Source Architecture](#source-architecture)
-9. [Expected Outputs](#expected-outputs)
-10. [Working with this Repository](#working-with-this-repository)
-11. [GPU Cluster](#gpu-cluster)
-12. [References](#references)
+5. [Working with this Repository](#working-with-this-repository)
+6. [GPU Cluster](#gpu-cluster)
+7. [References](#references)
 
 ## Thesis
 
-The full thesis writeup (Abstract, Introduction, Methodology, Findings, Ablation Studies, Discussion, Conclusion) lives in [thesis.md](thesis.md).
+The full writeup (Abstract, Introduction, Methodology, Findings for RQ1/RQ2/RQ3, Discussion, Conclusion) lives in [thesis.md](thesis.md). All findings, audit numbers, regression tables, and the per-band lift profile are reported there. This README is the engineering counterpart: project context, code architecture, reproduction instructions.
 
 ## Paper Summary: FAR-Trans
 
@@ -81,6 +76,8 @@ Most existing FAR models are developed over **proprietary or simulated datasets*
 
 #### Customer Segments and MiFID Risk Profiles
 
+**MiFID II** (Markets in Financial Instruments Directive II) is the EU regulation in force since January 2018 that requires investment firms to verify a product is suitable for a client's risk tolerance, knowledge, financial situation, and objectives before recommending it. Risk profiles in FAR-Trans come from a real MiFID II 25-question questionnaire administered by the bank; for the subset of customers who never completed it, the band is regression-imputed from correlated demographic features like estimated salary.
+
 The two regulatory signals that this thesis treats as load-bearing:
 
 - **MiFID II risk profile** (`riskLevel`): four declared bands (`Conservative`, `Income`, `Balanced`, `Aggressive`) plus regression-imputed `Predicted_*` variants for customers who never completed the questionnaire.
@@ -101,7 +98,9 @@ The FAR-Trans paper benchmarks three families:
 2. **Transaction-based** (Popularity, Matrix Factorisation, LightGCN, ARM, UB-kNN): predict the next purchase from interaction history. Best at nDCG@10 (LightGCN reaches 0.3404), worst at ROI@10 (near-zero realised return).
 3. **Hybrid** (Hybrid-nDCG, Hybrid-regression): two-stage pipelines combining the above. Neither dominates either axis.
 
-The headline finding is the **negative correlation between nDCG@10 and ROI@10**: methods that win one objective lose the other. This is the gap the original sequential-modelling thesis tried to close. The revised thesis treats that conflict as a *symptom* of a deeper problem: customer transactions encode systematic behavioural bias, and current FAR systems have no reason to filter that out because the regulatory profile signal is not part of any baseline's loss or evaluation.
+The headline finding is the **negative correlation between nDCG@10 and ROI@10**: methods that win one objective lose the other.
+
+A second observation, which motivates this thesis: none of these baselines take the customer's MiFID risk profile or the suitability of the assets they buy as a signal. Price-based models fit returns, transaction-based models fit buy history, hybrids combine the two, but none read `riskLevel` or measure how aligned a recommendation is with the customer's profile. Any mismatch between profile and actual buying behaviour passes straight through into the recommendations, and standard metrics (nDCG, ROI) don't penalise it, so the model has no reason to correct it.
 
 ### Benchmark Results (Paper Table 2)
 
@@ -123,245 +122,22 @@ The headline finding is the **negative correlation between nDCG@10 and ROI@10**:
 
 ## Problem Statement
 
-> **Existing FAR systems train against observed user transactions, but those transactions encode systematic behavioural bias documented in the finance literature (Barber and Odean 2000 / 2008; Kumar 2009). FAR-Trans contains a regulatory ground-truth signal that is almost entirely ignored: the customer's MiFID II risk profile. Using this signal as both an evaluation axis (does the recommender match the user's declared risk band?) and a learning signal (penalise high scores assigned to profile-discordant assets) reframes the FAR problem as a profile-coherence question rather than a pure preference vs profit trade-off.**
+The FAR-Trans benchmark exposes a sharp tradeoff between two evaluation axes. Transaction-based methods (LightGCN, Matrix Factorisation) achieve high nDCG@10 by fitting customer buy history but earn near-zero ROI@10. Price-based methods (Random Forest, LightGBM) achieve the highest ROI@10 by predicting asset profitability but score near-random on nDCG@10. No baseline simultaneously wins both axes, and the field has typically framed this as a fundamental "preference versus profit" tension to be balanced via hybrid objectives.
 
-The original thesis (sequential SASRec / TiSASRec / Hybrid Dual-Head models for FAR) was dropped as it was a score-chasing exercise rather than a problem-finding contribution. The revised thesis frames the FAR problem around an under-exploited regulatory signal in the FAR-Trans dataset.
+FAR-Trans contains a third signal that every existing baseline ignores: the customer's MiFID II risk profile. None of the FAR-Trans baselines read this signal as input, optimise against it during training, or are evaluated on whether their top-k satisfies it.
+
+The consequence is a measurement gap and a method gap. The measurement gap: nDCG and ROI cannot tell whether a recommendation is suitable, so a model that produces failing recommendations can still score well on the established benchmark. Any mismatch between a customer's profile and their actual buying behaviour passes straight through into the model's output.
+
+This thesis treats the gap as the load-bearing problem. It introduces **Profile Coherence at k (PC@k)** as an evaluation axis and uses it both to audit the FAR-Trans transaction record and to relocate existing baselines on a third axis. The reframing positions FAR not as preference-versus-profit, but as profit-within-the-suitable-universe.
 
 ## Research Questions
 
-1. **RQ1 (Diagnostic):** What is the distribution of profile-discordance in the FAR-Trans transaction record, broken down by `customerType`, `riskLevel`, and market regime? *Answered: see [Dataset Audit Findings](#dataset-audit-findings).*
-2. **RQ2 (Causal):** Controlling for asset volatility, customer segment, and time, do profile-discordant transactions earn lower realised 6-month excess return than profile-coherent ones? *Tested via panel regression.*
-3. **RQ3 (Audit):** What is the Profile Coherence at 10 (PC@10) of each FAR-Trans baseline (Random Forest, LightGCN)? Does the nDCG-ROI tradeoff explain itself partially as a profile-coherence axis? *Tested via the baseline grid sweep.*
-4. **RQ4 (Method):** Does adding (a) profile conditioning and (b) a profile-coherence regulariser to LightGCN improve PC@10 and ROI@10 with minimal nDCG@10 cost? Which of the two components carries the gain? *Tested via Profile-Coherent LightGCN.*
-
-## Dataset Audit Findings
-
-The dataset audit (`uv run poe eda`, source in `src/pipeline/eda.py`, full numbers in `outputs/eda/summary.json`) tests whether profile-coherence is a load-bearing signal in FAR-Trans. The headline numbers below all come from the hierarchical asset risk-class mapping (mutual funds via `assetSubCategory`, bonds via subcategory, stocks via 252-day annualised volatility quartile).
-
-### Coverage
-
-| Quantity | Value | Notes |
+| # | Question | Test method |
 |---|---|---|
-| Total customers | 29,090 | Matches FAR-Trans paper |
-| Customers with usable MiFID band | 28,770 (98.9%) | 7,141 (24.5%) regression-imputed `Predicted_*` |
-| Customers with `Not_Available` band | 320 (1.1%) | Excluded from PC@k |
-| Total assets classified | 806 | 100% mapping coverage |
-| Total Buy transactions | 228,913 | |
-| Buy transactions scoreable for PC | 228,241 (99.7%) | |
-
-The framework can score 99.7% of Buy transactions, so any sample-selection bias from missing profile signals is negligible.
-
-### Finding 1: 18.6% of FAR-Trans Buy transactions are profile-discordant
-
-Across 228,241 scoreable Buy transactions, the discordance distribution is:
-
-| Discordance `d` | Count | Share |
-|---|---|---|
-| `d = 0` (exact band match) | 77,925 | 34.1% |
-| `d = 1` (within tolerance) | 107,899 | 47.3% |
-| `d = 2` | 35,581 | 15.6% |
-| `d = 3` (extreme mismatch) | 6,836 | 3.0% |
-
-Under the default tolerance (`d <= 1`) **81.4% of transactions are profile-coherent**, leaving **18.6% (42,417 transactions) that violate the user's declared MiFID band by 2 or more steps**. Mean discordance is 0.87 bands. See `outputs/eda/transaction_discordance_distribution.png`.
-
-### Finding 2: Self-discordance is a customer-level trait, not transaction-level noise
-
-The per-customer fraction of discordant transactions is bimodal, not normal:
-
-- **64.4% of customers are fully profile-coherent** (every transaction within `d <= 1`).
-- **17.2% of customers are fully discordant** (every transaction at `d >= 2`).
-- 20.3% have a majority-discordant trading record.
-- The middle of the distribution is sparse.
-
-This U-shape (`outputs/eda/customer_self_discordance_histogram.png`) is the strongest empirical motivation for the thesis: discordance is *systematic at the customer level*, not random noise. A recommender that ignores it inherits the same bias. Behavioural-finance literature (Barber and Odean 2000 / 2008; Kumar 2009) predicts exactly this concentration.
-
-### Finding 3: Extreme-band customers reach toward the centre
-
-Decomposing transaction discordance by the customer's declared MiFID band reveals a regression-toward-the-mean pattern:
-
-| Declared MiFID Band | Transactions | Coherent share (`d <= 1`) |
-|---|---|---|
-| Conservative | 14,193 | **45.1%** |
-| Income | 73,468 | 90.9% |
-| Balanced | 99,901 | 89.9% |
-| Aggressive | 40,679 | **56.2%** |
-
-Mid-band customers (Income, Balanced) are roughly 90% profile-coherent. The two extreme bands are dramatically less coherent: more than half of Conservative customers' Buy transactions land at `d >= 2` (chasing risk), and a similar fraction of Aggressive customers' purchases land in safer assets than their profile permits (loss-aversion or yield-chasing). See `outputs/eda/discordance_by_risk_level.png`.
-
-### Finding 4: Discordance is stable across regimes
-
-Mean discordance per calendar year stays in the 0.83-0.98 band across 2018-2022 (`outputs/eda/discordance_by_year.png`). The COVID-19 crash and recovery do not visibly shift the pattern. This rules out a "panic trading drove the discordance" explanation and supports the customer-level-trait reading from Finding 2.
-
-### Finding 5: Hierarchical mapping is more lenient than pure volatility, but not by much
-
-The sensitivity check uses pure volatility quartiles for *all* assets (no metadata):
-
-| Mapping | `d <= 1` share | Strict `d == 0` share | Mean `d` |
-|---|---|---|---|
-| Hierarchical (default) | 81.4% | 34.1% | 0.87 |
-| Pure volatility quartiles | 73.2% | 26.8% | 1.03 |
-
-Switching to a pure-volatility mapping shifts the headline `d <= 1` rate down by 8 pp. The qualitative findings (1-4) hold under both mappings; we report the hierarchical numbers as the primary result because using regulatory metadata where it exists is a regulator-aligned design choice, and report the volatility numbers in the sensitivity table.
-
-### What this implies for the thesis
-
-The 18.6% discordant share with a customer-level concentration justifies treating profile-coherence as a load-bearing signal. The remaining empirical questions:
-
-- **Do profile-discordant transactions earn lower realised excess returns?** Tested via a panel regression (RQ2).
-- **Do high-nDCG FAR baselines reproduce this discordance?** Tested by computing PC@10 on the existing baselines (RQ3).
-- **Can a minimal architectural change correct it?** Tested via Profile-Coherent LightGCN (RQ4).
-
-## Novelty and Research Contributions
-
-1. **Profile Coherence at k (PC@k).** A new evaluation metric that scores the share of recommended top-k assets whose risk class is within one MiFID band of the user's declared profile. Reported alongside nDCG, ROI, and Recall on every model.
-2. **Self-discordance audit of FAR-Trans.** Empirical decomposition (above) of how often customers transact outside their declared risk band, and how that decomposes by segment, declared band, and time. The U-shaped per-customer distribution (Finding 2) and the band-asymmetry pattern (Finding 3) are new findings about the dataset itself.
-3. **Profile-Coherent LightGCN.** A minimal extension of LightGCN that conditions on `(riskLevel, customerType, investmentCapacity)` via a summed embedding and adds a profile-coherence regulariser to the BPR loss. The architecture delta is one embedding sum and one extra loss term. This shows profile coherence can be injected as a *learning* signal, not only as a post-hoc re-ranking constraint (the path taken by RURA, Kim et al. 2025).
-
-## Proposed Approach
-
-### Risk-class assignment for assets
-
-Each asset is mapped to one of the four MiFID bands using a hierarchical rule:
-
-1. **Mutual funds (`assetCategory == 'MTF'`)** carry an `assetSubCategory` mapped directly: `Money Market` -> Conservative, `Bond` / `Bonds` -> Income, `Balanced` -> Balanced, `Equity` / `Large Cap` -> Aggressive. `Other` and `Structured` fall through.
-2. **Bonds (`assetCategory == 'Bond'`)** with `Government` -> Conservative, `Corporate` -> Income, otherwise Income.
-3. **Stocks and remaining assets** are binned by trailing 252-trading-day annualised volatility quartile: lowest quartile -> Conservative, ..., top quartile -> Aggressive.
-
-The bands are encoded as ordinals: Conservative=0, Income=1, Balanced=2, Aggressive=3.
-
-### Profile-discordance and PC@k
-
-For a customer `u` with declared band `b_u` and an asset `i` with band `b_i`:
-
-```
-discordance(u, i) = |b_u - b_i|
-PC@k = (1/k) * |{i in top_k : discordance(u, i) <= 1}|
-```
-
-Customers whose `risk_band` is `None` (raw `Not_Available`) contribute 0.0 to PC@k. The strict variant (`discordance == 0`) is reported as a sensitivity row.
-
-### Profile-Coherent LightGCN
-
-Two minimal additions on top of `LightGCNBaseline`:
-
-1. **Profile embedding.** Three small `nn.Embedding` tables keyed on `(risk_band, customer_type, investment_capacity)`. The lookup vectors are summed, projected to the LightGCN embedding dimension, and added to the user embedding *before* the LGConv stack. Toggle via `profile_embedding_enabled`.
-2. **Profile-coherence regulariser.** The total loss becomes
-   ```
-   L = L_BPR + lambda_pc * E_{(u, i_pos) in batch} [ d(u, i_pos) * sigmoid(score(u, i_pos)) ]
-   ```
-   This penalises high scores assigned to profile-discordant positives, weighted by the discordance distance. Toggle via `profile_coherence_enabled`. The strength is `profile_coherence_lambda`.
-
-Setting both toggles to False reduces the model exactly to vanilla LightGCN, which is the cleanest possible 2x2 ablation: each row of the ablation table corresponds to one cell of `(profile_embedding_enabled, profile_coherence_enabled)`.
-
-### Evaluation Schedule
-
-The original FAR-Trans evaluation schedule is preserved unchanged: 69 evenly-spaced evaluation splits at ~9-trading-day intervals, each with a 6-month test window. See `src/data/splitting.py` and the FAR-Trans paper's Section 4 for the full mechanics.
-
-## Source Architecture
-
-### Pipeline Orchestration
-
-```sh
-uv run poe preprocess           # Step 0: generate splits to data/splits/
-uv run poe eda                  # Step 1: dataset audit -> outputs/eda/
-uv run poe tune                 # Step 2: end-to-end pipeline (baseline grid + PC-LGCN sweep + 3-model decomposition + canonical panel regressions)
-```
-
-`tune` is a single end-to-end driver: it runs the RF + LightGCN grid sweep, saves the baseline best-config JSON, runs the 7-trial PC-LGCN sweep at the winning LightGCN backbone, writes the 3-model decomposition and PC-LGCN ablation + lambda-sensitivity tables, and produces both canonical panel regressions (PC-LGCN pinned to the `L_PC`-only cell and to the full-method cell).
-
-### Baseline Grid Sweep
-
-The baseline grid stage of `src/pipeline/tune.py` (functions `run_baseline_grid_search` and the `_run_baseline_grid_for_spec` family) runs a Ray-driven grid sweep across RF (12 trials) and LightGCN (8 trials). Each trial is a **full 69-split evaluation**, so the per-trial summary is directly comparable to the FAR-Trans paper's Table 2.
-
-| Model | Grid axes | Trials | Primary metric |
-|---|---|---|---|
-| Random Forest | `number_of_estimators in {20, 30, 40, 50}` x `max_depth in {15, 25, 50}`; other axes pinned to paper | 12 | ROI@10 |
-| LightGCN | `embedding_dimension in {64, 128}` x `number_of_layers in {2, 3}` x `learning_rate in {1e-2, 1e-3}`; other axes pinned to paper | 8 | nDCG@10 |
-
-Outputs after one run:
-
-- `outputs/results/evaluation/{model}/{timestamp}/{trial_id}/per_split_metrics.csv`: per-trial per-split scalar metrics.
-- `outputs/results/evaluation/{model}/{timestamp}/{trial_id}/recommendations.parquet`: flat per-recommendation rows with `monthly_return` and `is_relevant` precomputed; the source of truth for any future decomposition or re-aggregation.
-- `outputs/results/tuning/{model}/{timestamp}.csv`: per-trial roll-up (one row per trial, four averaged metrics).
-- `outputs/configs/{timestamp}/best_hyperparameters.json`: best trial per primary metric.
-- `outputs/analysis/baseline_decomposition/{timestamp}/`:
-    - `main_results.csv`: best trial per model with means and standard deviations across splits.
-    - `decomposition.csv`: profile-coherent vs profile-discordant ROI breakdown per model.
-    - `scatter_ndcg_vs_pc.png`, `scatter_pc_vs_roi.png`: trade-off scatter plots.
-    - `summary.json`: machine-readable headline numbers.
-
-#### Resource model
-
-The cluster job (`scripts/tune.sh`) requests 1 L40s GPU, 4 CPUs, 16 GB RAM, with a 2-day wall-clock cap (`studentqos`). Each `GridSpec` declares its own `max_concurrent_trials` in `src/pipeline/tune.py`, currently set to 1 for every model so each trial runs serially:
-
-- RF: `max_concurrent_trials=1`, all 12 trials run sequentially. Each trial saturates all 4 CPU cores via `RandomForestRegressor(n_jobs=-1)`, so the work is parallelised inside the trial rather than across trials. This was the fix for the OOM at 16 GB: 4 concurrent forks each materialised a private copy of the 69-split `EvaluationContext`, totalling roughly 5 GB per worker, which the cgroup killed.
-- LightGCN: `max_concurrent_trials=1`, all 8 trials run sequentially with `gpu=1.0` per trial. Same memory rationale.
-- PC-LGCN: `max_concurrent_trials=1`, all 7 trials run sequentially with `gpu=1.0` per trial.
-
-#### Validation/Evaluation Window Overlap (Known Caveat)
-
-The legacy validation-split tuning had a known overlap issue between validation and early evaluation splits. The new design eliminates this entirely: every trial is a full 69-split evaluation, so there is no separate validation set whose splits could overlap with the benchmark.
-
-### Profile-Coherent LightGCN Sweep
-
-The PC-LGCN stage of `src/pipeline/tune.py` (function `run_profile_coherent_grid`) runs a focused 7-trial sweep on top of the winning LightGCN backbone. The backbone hyperparameters are read from `outputs/configs/<latest>/best_hyperparameters.json` (selected by mean nDCG@10 in the baseline stage). All seven trials use the same backbone; only the profile-conditioning components vary.
-
-| Sub-sweep | Axes | Trials | Purpose |
-|---|---|---|---|
-| 2x2 ablation | `profile_embedding_enabled in {False, True}` x `profile_coherence_enabled in {False, True}`, `lambda_pc = 0.5` (paper default) | 4 | Attribute gains to each component independently. The (False, False) cell reduces exactly to vanilla LightGCN, so the table reads as a delta against the baseline. |
-| Lambda sensitivity | `profile_coherence_lambda in {0.1, 1.0, 2.0}` with both flags True (`0.5` is reused from the ablation cell) | 3 | Quantify robustness of the regulariser strength. |
-
-Selecting the backbone first on nDCG@10 means the ablation answers the question *"given the best plain backbone, do profile-conditioning components add coherence without hurting accuracy?"* This avoids confounding ablation with hyperparameter sensitivity. The thesis flags this as a deliberate scope choice; if the winning cell underperforms, the runner-up backbone can be retried at low cost since each PC-LGCN run is short.
-
-Outputs after one run:
-
-- `outputs/results/evaluation/profile_coherent_light_gcn/{timestamp}/{trial_id}/per_split_metrics.csv` and `recommendations.parquet`: same schema as the baseline pipeline, so the decomposition module consumes them unchanged.
-- `outputs/results/tuning/profile_coherent_light_gcn/{timestamp}.csv`: per-trial roll-up.
-- `outputs/analysis/baseline_decomposition/{timestamp}/main_results.csv`: now includes a Profile-Coherent LightGCN row alongside the two baselines.
-- `outputs/analysis/profile_coherent_decomposition/{timestamp}/`:
-    - `ablation.csv`: 4 rows, one per (profile-embedding, L_PC) cell, with means + std + per-trial coherent/discordant ROI.
-    - `lambda_sensitivity.csv`: 4 rows (the ablation's both-on cell + 3 sensitivity points) ordered by lambda.
-    - `summary.json`: machine-readable headline numbers.
-
-### Panel Regression
-
-The panel-regression analysis (function `run_panel_regression` inside `src/pipeline/tune.py`) tests RQ2/RQ3 jointly: does the per-band coherence gap close or widen between models? Each model's best-trial recommendations parquet is reduced to one row per (customer, split) carrying the customer's coherent share for that split. The model fits
-
-```
-coherent_share ~ C(declared_band) * C(model) + C(split_index)
-```
-
-with cluster-robust standard errors on `customer_id`. The interaction terms are the headline coefficients: each one quantifies how a given model shifts a given band's coherence relative to the reference cell (Conservative band, alphabetically-first model).
-
-The pipeline runs the panel regression twice with the same RF and LightGCN best-trial recommendations but two different PC-LGCN cells pinned in, so each ablation lands in its own output directory:
-
-- `outputs/analysis/panel_regression_three_models/{timestamp}/`: PC-LGCN pinned to the L_PC-only cell (`profile_embedding=False, profile_coherence=True, lambda=0.5`).
-- `outputs/analysis/panel_regression_three_models_full_method/{timestamp}/`: PC-LGCN pinned to the full-method cell (`profile_embedding=True, profile_coherence=True, lambda=1.0`).
-
-Each directory contains the same files:
-
-- `coefficients.csv`: every coefficient with point estimate, SE, t, p, and 95% CI.
-- `predicted_pc_by_band_model.csv`: model-implied PC@10 per (band, model) cell at the median split, with 95% CIs.
-- `forest_predicted_pc.png`: forest figure of the predicted PC@10 grid, which is the headline visualization for the thesis's structural-discordance claim.
-- `regression_summary.txt`: the full statsmodels OLS summary.
-- `panel.csv`: the assembled (customer, split, model) panel for replication.
-
-## Expected Outputs
-
-### Tables
-
-1. **Table 1** (main results): `Model x {nDCG@10, ROI@10, Recall@10, PC@10}` for RF, LightGCN, Profile-Coherent LightGCN over 69 splits, mean +/- standard deviation across splits.
-2. **Table 2** (ablation): `LightGCN-variant x metrics` with 2x2 toggle of profile-embedding and L_PC, plus a 3-point lambda sensitivity sweep on the both-flags-on cell.
-3. **Table 3** (panel regression): per-band predicted PC@10 with cluster-robust SEs on `customer_id`.
-
-### Figures
-
-1. **Figure 1**: distribution of asset risk-class assignments under the hierarchical mapping.
-2. **Figure 2**: per-customer self-discordance histogram, by `customerType` and `riskLevel`.
-3. **Figure 3**: ROI by discordance-bin (0, 1, 2, 3) on actual transactions.
-4. **Figure 4**: decomposition: per-baseline ROI@10 on profile-coherent vs discordant top-10 subsets.
-5. **Figure 5**: (nDCG@10, PC@10) scatter and (PC@10, ROI@10) scatter, with one point per baseline.
-6. **Figure 6**: `lambda_pc` sweep on Profile-Coherent LightGCN: Pareto curve over (nDCG, ROI, PC).
+| **RQ1** *(Diagnostic)* | What is the distribution of profile-discordance in the FAR-Trans transaction record, broken down by `customerType`, `riskLevel`, and market regime? | Dataset audit (`uv run poe eda`, source in `src/pipeline/eda.py`, full numerics in `outputs/eda/summary.json`); written up in [thesis.md, section 3.1](thesis.md#31-rq1-profile-discordance-is-prevalent-and-structural). |
+| **RQ2** *(Quasi-causal)* | Do profile-discordant transactions earn lower realised 6-month return than profile-coherent ones? | Transaction-level OLS on the FAR-Trans Buy record with asset volatility, customer segment, and year as controls and standard errors clustered on `customerID`; written up in [thesis.md, section 3.2](thesis.md#32-rq2-profile-coherent-transactions-earn-higher-realised-return). |
+| **RQ3** *(Audit)* | Where do the FAR-Trans baselines (Random Forest, LightGCN) sit on the Profile Coherence (PC@10) axis relative to the band-conditional random baseline π (the per-band PC@10 a uniformly-random recommender would achieve, computed as the share of the asset menu within ±1 band of the customer's risk band)? | Baseline grid sweep across 69 time-based splits + a band-conditional model panel regression; written up in [thesis.md, section 3.3](thesis.md#33-rq3-both-far-trans-baselines-under-serve-declared-band-coherence). |
+| **RQ4** *(Method)* | *To be redefined. The previous RQ4 ("does profile conditioning + a coherence regulariser improve PC@10 and ROI@10?") was retired with the supervisor's feedback; the replacement question and its corresponding test method will be added once finalised.* | TBD |
 
 ## Working with this Repository
 
@@ -382,11 +158,27 @@ graphify claude install               # optional: Claude Code integration
 ### Common Tasks
 
 ```sh
+uv run poe preprocess                                                         # generate temporal evaluation splits to data/splits/
+uv run poe eda                                                                # dataset audit -> outputs/eda/
+uv run poe tune --splits-limit 2 --device cpu                                 # end-to-end smoke test using cpu and small subset of data
 uv run poe lint                                                               # ruff linting
 uv run poe type                                                               # ty type checks
 uv run poe format                                                             # ruff format
-uv run poe tune --splits-limit 2 --device cpu                                 # end-to-end smoke test using cpu and small subset of data
 ```
+
+### Outputs
+
+A full pipeline run (`preprocess` + `eda` + `tune`) produces:
+
+- `outputs/eda/`: dataset audit (`summary.json` plus seven figures).
+- `outputs/results/evaluation/{model}/{timestamp}/{trial_id}/`:
+    - `per_split_metrics.csv`: per-split scalar metrics for one trial.
+    - `recommendations.parquet`: flat per-recommendation rows with `monthly_return` and `is_relevant` precomputed.
+- `outputs/results/tuning/{model}/{timestamp}.csv`: per-trial roll-up (averaged nDCG@10, ROI@10, Recall@10, PC@10, and PC-lift@10).
+- `outputs/configs/{timestamp}/best_hyperparameters.json`: best trial per model, by primary metric.
+- `outputs/analysis/baseline_decomposition/{timestamp}/`: `main_results.csv`, `decomposition.csv`, scatter plots, `summary.json`.
+- `outputs/analysis/transaction_return_regression/{timestamp}/` (RQ2): `coefficients.csv`, `panel.csv`, `regression_summary.txt`, `summary.json`.
+- `outputs/analysis/panel_regression/{timestamp}/` (RQ3): `coefficients.csv`, `predicted_pc_by_band_model.csv`, `forest_predicted_pc.png`, `panel.csv`, `regression_summary.txt`.
 
 ### Git Hooks
 
@@ -397,7 +189,18 @@ uv run poe tune --splits-limit 2 --device cpu                                 # 
 
 ## GPU Cluster
 
-The SMU `msc` partition under `studentqos` is the standard target for the grid sweep. The current `scripts/tune.sh` requests 1 L40s GPU, 4 CPUs, 16 GB RAM, and a 2-day wall-clock cap. SSH via my personal email: `samuel.sim.2024@origami.smu.edu.sg` (GlobalVPN set-up required).
+The SMU `msc` partition under `studentqos` is the standard target for the grid sweep. SSH via my personal email: `samuel.sim.2024@origami.smu.edu.sg` (GlobalVPN set-up required).
+
+### Resource Model
+
+The cluster job (`scripts/tune.sh`) requests 1 L40s GPU, 4 CPUs, 16 GB RAM, with a 2-day wall-clock cap. Each `GridSpec` in `src/config/registry.py` declares its own `max_concurrent_trials`, currently set to 1 for every model so each trial runs serially:
+
+- Random Forest: 12 trials run sequentially. Each trial saturates all 4 CPU cores via `RandomForestRegressor(n_jobs=-1)`, so the work is parallelised inside the trial rather than across trials. This was the fix for the OOM at 16 GB: 4 concurrent forks each materialised a private copy of the 69-split `EvaluationContext`, totalling roughly 5 GB per worker, which the cgroup killed.
+- LightGCN: 8 trials run sequentially with `gpu=1.0` per trial. Same memory rationale.
+
+### Validation/Evaluation Window Overlap (Known Caveat)
+
+The legacy validation-split tuning had a known overlap issue between validation and early evaluation splits. The new design eliminates this entirely: every trial is a full 69-split evaluation, so there is no separate validation set whose splits could overlap with the benchmark.
 
 ### Submitting the Pipeline
 
@@ -405,7 +208,7 @@ The SMU `msc` partition under `studentqos` is the standard target for the grid s
 sbatch scripts/tune.sh    # produces every artefact the thesis paper cites
 ```
 
-`scripts/tune.sh` loads the cluster Python and CUDA modules, activates the venv, and runs `uv run poe tune --device cuda`. That command sequentially: (i) runs the RF + LightGCN grid sweep, (ii) saves the baseline best-config JSON, (iii) runs the 7-trial PC-LGCN sweep using that backbone, (iv) writes the 3-model decomposition and the PC-LGCN ablation + lambda-sensitivity tables, and (v) runs both canonical panel regressions (PC-LGCN pinned to the `L_PC`-only cell and to the full-method cell).
+`scripts/tune.sh` loads the cluster Python and CUDA modules, activates the venv, and runs `uv run poe tune --device cuda`.
 
 Job email notifications go to the addresses listed in the `#SBATCH --mail-user` line. Live job output streams to `outputs/{user}.{jobid}.out` on the cluster filesystem.
 

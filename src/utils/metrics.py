@@ -13,6 +13,16 @@ from src.utils.profile_coherence import (
 )
 
 
+def compute_monthly_return(
+    start_price: float, end_price: float, days_in_period: int
+) -> float:
+    """Geometric monthly return for the ROI@k convention; zero on degenerate inputs."""
+    if start_price <= 0.0 or days_in_period <= 0:
+        return 0.0
+    total_return = (end_price - start_price) / start_price
+    return math.pow(1.0 + total_return, CALENDAR_DAYS_PER_MONTH / days_in_period) - 1.0
+
+
 def compute_ndcg_at_k(
     ranked_recommendations: list[str],
     relevant_assets: set[str],
@@ -58,28 +68,17 @@ def compute_roi_at_k(
     days_in_period: int,
     k: int = 10,
 ) -> float:
-    """Compute the average geometric monthly return across the top-k recommendations."""
+    """Average geometric monthly return across the top-k recommendations."""
     top_k = ranked_recommendations[:k]
     if not top_k:
         return 0.0
 
     monthly_returns: list[float] = []
-
     for asset_id in top_k:
-        if asset_id in price_lookup:
-            start_price, end_price = price_lookup[asset_id]
-            if start_price > 0.0:
-                total_return = (end_price - start_price) / start_price
-                monthly_return = (
-                    math.pow(
-                        1.0 + total_return,
-                        CALENDAR_DAYS_PER_MONTH / days_in_period,
-                    )
-                    - 1.0
-                )
-                monthly_returns.append(monthly_return)
-                continue
-        monthly_returns.append(0.0)
+        start_price, end_price = price_lookup.get(asset_id, (0.0, 0.0))
+        monthly_returns.append(
+            compute_monthly_return(start_price, end_price, days_in_period)
+        )
 
     return sum(monthly_returns) / len(monthly_returns)
 

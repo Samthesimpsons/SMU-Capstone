@@ -39,14 +39,14 @@ BAND_ORDER = [CONSERVATIVE, INCOME, BALANCED, AGGRESSIVE]
 BAND_LABELS = [RISK_BAND_NAMES[band] for band in BAND_ORDER]
 
 
-def annotate_transactions_with_discordance(
+def _annotate_transactions_with_discordance(
     transactions: pd.DataFrame,
     customer_profiles: dict[str, CustomerProfile],
     asset_risk_classes: dict[str, int],
     *,
     squared: bool = False,
 ) -> pd.DataFrame:
-    """Return a copy of `transactions` with discordance and band columns attached."""
+    """Return a copy of transactions with discordance and band columns attached."""
     result = transactions.copy()
     customer_bands: list[float] = []
     asset_bands: list[float] = []
@@ -391,7 +391,7 @@ def run_eda(
     asset_risk_classes = build_asset_risk_classes(assets, close_prices)
 
     print("Annotating transactions with profile-discordance...")
-    annotated_buys = annotate_transactions_with_discordance(
+    annotated_buys = _annotate_transactions_with_discordance(
         buy_transactions, profiles, asset_risk_classes
     )
 
@@ -407,7 +407,7 @@ def run_eda(
     print("Computing sensitivity: pure-volatility risk classes...")
     volatility_only_classes = _build_volatility_only_risk_classes(assets, close_prices)
     volatility_only_summary = _transaction_discordance_summary(
-        annotate_transactions_with_discordance(
+        _annotate_transactions_with_discordance(
             buy_transactions, profiles, volatility_only_classes
         )
     )

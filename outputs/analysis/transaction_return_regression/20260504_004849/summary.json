@@ -1,0 +1,19 @@
+{
+  "horizon_months": 6,
+  "output_directory": "outputs/analysis/transaction_return_regression/20260504_004849",
+  "panel_rows": 208029,
+  "unique_customers": 27873,
+  "coherent_share": 0.8129491561272707,
+  "mean_realised_return_overall": 0.036136822189670605,
+  "mean_realised_return_coherent": 0.042323878707216295,
+  "mean_realised_return_discordant": 0.009247008325624174,
+  "is_coherent_coefficient": {
+    "term": "is_coherent",
+    "estimate": 0.029382053137480758,
+    "std_error": 0.004009871786105325,
+    "t_value": 7.327429579991313,
+    "p_value": 2.3460887380104093e-13,
+    "ci_lower": 0.021522848854091024,
+    "ci_upper": 0.03724125742087049
+  }
+}
