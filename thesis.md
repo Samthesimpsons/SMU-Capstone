@@ -36,19 +36,29 @@ The contributions of the thesis are: (i) a regulator-aligned coherence metric wi
 
 ### 2.1 Profile Coherence at k
 
-Let `b_u in {0, 1, 2, 3}` be customer `u`'s declared MiFID II risk band, ordinally encoded as Conservative (0), Income (1), Balanced (2), Aggressive (3). Each asset `i` is mapped to a risk band `b_i` via a hierarchical scheme that prefers explicit subcategory metadata (mutual-fund subcategory or bond subcategory) and falls back to a 252-day annualised volatility quartile for stocks and any remaining assets without subcategory information. Pairwise discordance is the absolute ordinal distance:
+Let `b_u in {0, 1, 2, 3}` be customer `u`'s declared MiFID II risk band, ordinally encoded as Conservative (0), Income (1), Balanced (2), Aggressive (3). Customer bands are read from FAR-Trans's `riskLevel` field: the four declared strings (`Conservative`, `Income`, `Balanced`, `Aggressive`) map to bands directly, and the four regression-imputed strings (`Predicted_Conservative` ... `Predicted_Aggressive`) get the same ordinal mapping with an `is_predicted` flag carried alongside; customers with `Not_Available` or a missing `riskLevel` have `b_u = None` and are excluded from the metric.
+
+Each asset `i` is mapped to a risk band `b_i` via a hierarchical three-step rule (`build_asset_risk_classes` in `src/utils/profile_coherence.py`):
+
+1. **Subcategory metadata first.** Mutual-fund (MTF) subcategories map as `Money Market → Conservative`, `Bond / Bonds → Income`, `Balanced → Balanced`, `Equity / Large Cap → Aggressive`. Bond subcategories map as `Government → Conservative`, `Corporate → Income`, with any other bond subcategory defaulting to Income.
+2. **Volatility-quartile fallback for stocks.** A trailing 252-day annualised log-return standard deviation is computed per ISIN; the stock-only volatility distribution gives quartile cutoffs `(q1, q2, q3)`, and each stock is bucketed `Conservative` / `Income` / `Balanced` / `Aggressive` accordingly.
+3. **Balanced default.** Assets that fall through both rules (typically stocks without enough price history to compute volatility) are assigned `Balanced`, the centre-of-distribution prior.
+
+Pairwise discordance is the absolute ordinal distance:
 
 ```
 d(u, i) = |b_u - b_i| in {0, 1, 2, 3}
 ```
 
-A recommendation is **profile-coherent** under the default tolerance iff `d(u, i) <= 1`. PC@k for one user is the share of the top-k that is coherent:
+A recommendation is **profile-coherent** under the default tolerance iff `d(u, i) <= 1`; a stricter variant uses `d(u, i) == 0` (exact band match) and is reported only as a sensitivity row in the EDA. PC@k for one user is the share of the top-k that is coherent:
 
 ```
 PC@k(u) = (1/k) * |{i in top_k(u) : d(u, i) <= 1}|
 ```
 
-Recommendations to assets whose risk band cannot be determined are treated as discordant. Customers without a usable MiFID risk band (declared or regression-imputed) are excluded by setting their per-customer PC@k to zero, so the aggregate metric draws only on customers with a profile signal.
+Three implementation rules close out the per-user definition (`compute_profile_coherence_at_k` in `src/utils/metrics.py`). First, **truncation rather than padding**: a recommender that returns fewer than k items is scored on what it returned, so `len(top_k)` replaces `k` in the denominator if the slate is short. Second, **assets with no resolvable band count as discordant**: an asset whose `asset_id` is missing from the asset-band lookup contributes nothing to `coherent_count`. The Balanced default in step 3 of the asset-band rule means this is rare in practice, but the rule is conservative against unclassifiable items. Third, **customers without a usable MiFID risk band (declared or regression-imputed) are excluded** by setting their per-customer PC@k to zero, so the aggregate metric draws only on customers with a profile signal.
+
+The aggregate **PC@k for a split** is the unweighted mean of per-customer PC@k across the eligible customers in that split; no slate-volume or band-population reweighting is applied. The thesis-level numerics then average over the 69 splits.
 
 A uniformly-random recommender that samples assets ignoring customer profile achieves a band-conditional baseline that depends only on the asset-universe distribution:
 

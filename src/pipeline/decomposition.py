@@ -1,4 +1,4 @@
-"""Stage 2: 2-model (RF + LightGCN) ROI / coherence decomposition."""
+"""2-model (RF + LightGCN) ROI / coherence decomposition."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Stage 1: RF + LightGCN grid sweep via Ray Tune."""
+"""RF + LightGCN grid sweep via Ray Tune."""
 
 from __future__ import annotations
 

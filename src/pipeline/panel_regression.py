@@ -1,4 +1,4 @@
-"""Stage 4 / RQ3: model panel regression of profile coherence on band x model."""
+"""Model panel regression of profile coherence on band x model."""
 
 from __future__ import annotations
 

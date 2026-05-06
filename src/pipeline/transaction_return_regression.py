@@ -1,4 +1,4 @@
-"""Stage 3 / RQ2: transaction-level return regression on Buy events."""
+"""Transaction-level return regression on Buy events."""
 
 from __future__ import annotations
 
@@ -227,7 +227,7 @@ def run_transaction_return_regression(
     price_lookup_tolerance_days: int = PRICE_LOOKUP_TOLERANCE_DAYS,
     run_timestamp: str | None = None,
 ) -> dict[str, Any]:
-    """Fit the RQ2 transaction-level OLS and save coefficients, summary, and panel."""
+    """Fit the transaction-level OLS and save coefficients, summary, and panel."""
     data_paths = data_paths or DataPaths()
     panel = _build_panel(
         data_paths=data_paths,
@@ -277,5 +277,5 @@ def run_transaction_return_regression(
     (output_directory / "summary.json").write_text(json.dumps(summary, indent=2))
 
     _print_headline(summary)
-    print(f"\nRQ2 transaction-return regression artefacts saved to {output_directory}")
+    print(f"\nTransaction-return regression artefacts saved to {output_directory}")
     return summary

@@ -1,4 +1,4 @@
-"""RQ4: stratified profile-coherent LightGCN training and evaluation."""
+"""Stratified profile-coherent LightGCN training and evaluation."""
 
 from __future__ import annotations
 
@@ -359,7 +359,7 @@ def run_stratified_training(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="RQ4: stratified profile-coherent LightGCN training and evaluation."
+        description="Stratified profile-coherent LightGCN training and evaluation."
     )
     parser.add_argument("--splits-dir", type=str, default="data/splits")
     parser.add_argument("--results-dir", type=str, default="outputs/results")

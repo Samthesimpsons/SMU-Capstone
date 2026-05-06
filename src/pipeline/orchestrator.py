@@ -1,4 +1,4 @@
-"""End-to-end thesis pipeline orchestrator."""
+"""End-to-end pipeline orchestrator."""
 
 from __future__ import annotations
 
@@ -22,11 +22,11 @@ def run_tune(
     data_paths: DataPaths | None = None,
     splits_limit: int | None = None,
 ) -> None:
-    """Run all four pipeline stages back-to-back."""
+    """Run all four pipeline steps back-to-back."""
     experiment_config = experiment_config or ExperimentConfig()
     data_paths = data_paths or DataPaths()
 
-    print("\n=== Stage 1: baseline grid sweep (RF + LightGCN) ===")
+    print("\n=== Baseline grid sweep (RF + LightGCN) ===")
     _, baseline_run_timestamp = run_baseline_grid_search(
         splits_directory=splits_directory,
         results_directory=results_directory,
@@ -35,7 +35,7 @@ def run_tune(
         splits_limit=splits_limit,
     )
 
-    print("\n=== Stage 2: 2-model decomposition (RF + LightGCN) ===")
+    print("\n=== 2-model decomposition (RF + LightGCN) ===")
     run_decomposition(
         evaluation_directory=results_directory / "evaluation",
         run_timestamp=None,
@@ -43,10 +43,10 @@ def run_tune(
         top_k=experiment_config.top_k,
     )
 
-    print("\n=== Stage 3: RQ2 transaction-return regression ===")
+    print("\n=== Transaction-return regression ===")
     run_transaction_return_regression(data_paths=data_paths)
 
-    print("\n=== Stage 4: RQ3 model panel regression (RF + LightGCN) ===")
+    print("\n=== Model panel regression (RF + LightGCN) ===")
     run_panel_regression(
         evaluation_directory=results_directory / "evaluation",
         data_paths=data_paths,
@@ -58,8 +58,8 @@ def run_tune(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=(
-            "End-to-end thesis pipeline: baseline grid, 2-model decomposition, "
-            "RQ2 transaction-return regression, and RQ3 model panel regression."
+            "End-to-end pipeline: baseline grid, 2-model decomposition, "
+            "transaction-return regression, and model panel regression."
         )
     )
     parser.add_argument("--splits-dir", type=str, default="data/splits")
