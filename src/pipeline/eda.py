@@ -170,7 +170,7 @@ def _transaction_discordance_summary(
 
 def _customer_self_discordance(
     annotated_transactions: pd.DataFrame,
-) -> tuple[np.ndarray, dict[str, float]]:
+) -> tuple[np.ndarray, dict[str, float | list[float] | list[int]]]:
     """Per-customer fraction of profile-discordant transactions plus a summary dict."""
     valid = annotated_transactions.dropna(subset=["customer_band", "asset_band"])
     grouped = valid.groupby("customerID")
@@ -179,6 +179,7 @@ def _customer_self_discordance(
         include_groups=False,
     )
     values = np.asarray(discordant_share.to_numpy(dtype=float))
+    histogram_edges = [round(edge / 10, 1) for edge in range(11)]
     if values.size == 0:
         return values, {
             "mean_discordant_share": 0.0,
@@ -186,13 +187,18 @@ def _customer_self_discordance(
             "fraction_with_majority_discordance": 0.0,
             "fraction_fully_coherent": 0.0,
             "fraction_fully_discordant": 0.0,
+            "discordant_share_histogram_edges": histogram_edges,
+            "discordant_share_histogram_counts": [0] * 10,
         }
+    counts, _ = np.histogram(values, bins=np.array(histogram_edges))
     summary = {
         "mean_discordant_share": float(values.mean()),
         "median_discordant_share": float(np.median(values)),
         "fraction_with_majority_discordance": float((values > 0.5).mean()),
         "fraction_fully_coherent": float((values == 0.0).mean()),
         "fraction_fully_discordant": float((values == 1.0).mean()),
+        "discordant_share_histogram_edges": histogram_edges,
+        "discordant_share_histogram_counts": [int(count) for count in counts],
     }
     return values, summary
 
@@ -214,6 +220,21 @@ def _discordance_by_year(annotated_transactions: pd.DataFrame) -> dict[str, floa
     valid["year"] = valid["timestamp"].dt.year
     means = valid.groupby("year")["discordance"].mean()
     return {str(year): float(value) for year, value in means.items()}
+
+
+def _buy_coverage_by_year(
+    buy_transactions: pd.DataFrame,
+) -> dict[str, dict[str, object]]:
+    """Per-year Buy counts plus the last observed Buy date (used to flag partial years)."""
+    by_year = buy_transactions.groupby(buy_transactions["timestamp"].dt.year)
+    return {
+        str(year): {
+            "count": int(len(group)),
+            "first_date": group["timestamp"].min().date().isoformat(),
+            "last_date": group["timestamp"].max().date().isoformat(),
+        }
+        for year, group in by_year
+    }
 
 
 def _discordance_by_risk_level(
@@ -402,6 +423,7 @@ def run_eda(
     discordant_share, self_summary = _customer_self_discordance(annotated_buys)
     segment_means = _discordance_by_segment(annotated_buys, customer_segment_lookup)
     year_means = _discordance_by_year(annotated_buys)
+    buy_coverage_by_year = _buy_coverage_by_year(buy_transactions)
     risk_level_distribution = _discordance_by_risk_level(annotated_buys)
 
     print("Computing sensitivity: pure-volatility risk classes...")
@@ -435,6 +457,7 @@ def run_eda(
         "customer_band_distribution": customer_distribution,
         "transaction_discordance_summary": transaction_summary,
         "customer_self_discordance_summary": self_summary,
+        "buy_coverage_by_year": buy_coverage_by_year,
         "mean_discordance_by_segment": segment_means,
         "mean_discordance_by_year": year_means,
         "transaction_discordance_by_risk_level": risk_level_distribution,

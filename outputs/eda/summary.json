@@ -60,7 +60,59 @@
     "median_discordant_share": 0.0,
     "fraction_with_majority_discordance": 0.202676399026764,
     "fraction_fully_coherent": 0.6442822384428224,
-    "fraction_fully_discordant": 0.17208898157803268
+    "fraction_fully_discordant": 0.17208898157803268,
+    "discordant_share_histogram_edges": [
+      0.0,
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "discordant_share_histogram_counts": [
+      19365,
+      951,
+      584,
+      676,
+      245,
+      1234,
+      407,
+      176,
+      137,
+      4995
+    ]
+  },
+  "buy_coverage_by_year": {
+    "2018": {
+      "count": 49489,
+      "first_date": "2018-01-02",
+      "last_date": "2018-12-31"
+    },
+    "2019": {
+      "count": 10624,
+      "first_date": "2019-01-02",
+      "last_date": "2019-12-31"
+    },
+    "2020": {
+      "count": 66345,
+      "first_date": "2020-01-02",
+      "last_date": "2020-12-31"
+    },
+    "2021": {
+      "count": 58194,
+      "first_date": "2021-01-04",
+      "last_date": "2021-12-31"
+    },
+    "2022": {
+      "count": 44261,
+      "first_date": "2022-01-03",
+      "last_date": "2022-11-30"
+    }
   },
   "mean_discordance_by_segment": {
     "Inactive": 1.0329411764705883,
