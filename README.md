@@ -1,20 +1,19 @@
-# SMU Capstone: Profile Coherence as a Diagnostic and Design Lens for Financial Asset Recommendation
+# Profile Coherence at k: A Suitability Axis for Financial Asset Recommendation
 
-A measurement framework for profile-aware financial asset recommendation on the FAR-Trans dataset. The thesis introduces **Profile Coherence at k (PC@k)** as a new evaluation axis, audits how profile-coherent existing FAR baselines (Random Forest, LightGCN) actually are (RQ1-RQ3), and proposes a stratified profile-coherent LightGCN extension as a prescriptive intervention (RQ4). This README is the single source of truth for the project.
+A measurement framework for profile-aware financial asset recommendation on the FAR-Trans dataset. The thesis introduces **Profile Coherence at k (PC@k)** as a new evaluation axis, audits how profile-coherent existing FAR baselines (Random Forest, LightGCN) actually are (RQ1-RQ3), and proposes a stratified profile-coherent LightGCN extension as a prescriptive intervention (RQ4).
 
 ## Table of Contents
 
 1. [Thesis](#thesis) (full writeup in [thesis.md](thesis.md))
 2. [Paper Summary: FAR-Trans](#paper-summary-far-trans)
 3. [Problem Statement](#problem-statement)
-4. [Research Questions](#research-questions)
-5. [Working with this Repository](#working-with-this-repository)
-6. [GPU Cluster](#gpu-cluster)
-7. [References](#references)
+4. [Working with this Repository](#working-with-this-repository)
+5. [GPU Cluster](#gpu-cluster)
+6. [References](#references)
 
 ## Thesis
 
-The full writeup (Abstract, Introduction, Methodology, Findings for RQ1/RQ2/RQ3, Discussion, Conclusion) lives in [thesis.md](thesis.md). All findings, audit numbers, regression tables, and the per-band lift profile are reported there. This README is the engineering counterpart: project context, code architecture, reproduction instructions.
+The full writeup lives in [thesis.md](thesis.md). This README is the engineering counterpart: project context, code architecture, reproduction instructions.
 
 ## Paper Summary: FAR-Trans
 
@@ -128,19 +127,6 @@ The consequence is a measurement gap and a method gap. The measurement gap: nDCG
 
 This thesis treats the gap as the load-bearing problem. It introduces **Profile Coherence at k (PC@k)** as an evaluation axis and uses it both to audit the FAR-Trans transaction record and to relocate existing baselines on a third axis. The reframing positions FAR not as preference-versus-profit, but as profit-within-the-suitable-universe.
 
-## Research Questions
-
-| # | Question |
-|---|---|
-| **RQ1** *(Diagnostic)* | What is the distribution of profile-discordance in the FAR-Trans transaction record, broken down by `customerType`, `riskLevel`, and market regime? |
-| **RQ2** *(Quasi-causal)* | Do profile-discordant transactions earn lower realised 6-month return than profile-coherent ones? |
-| **RQ3** *(Audit)* | Where do the FAR-Trans baselines (Random Forest, LightGCN) sit on the Profile Coherence (PC@10) axis relative to the band-conditional random baseline π (the per-band PC@10 a uniformly-random recommender would achieve, computed as the share of the asset menu within ±1 band of the customer's risk band)? |
-| **RQ4** *(Method)* | Can a stratified, profile-coherent LightGCN extension (one sub-model per MiFID risk band, trained with a profile-coherent margin loss) improve PC@10 over the global LightGCN baseline, and at what cost to nDCG@10, Recall@10, and ROI@10? Does the gain vary by declared risk segment? |
-
-### Validation/Evaluation Window Overlap (Known Caveat)
-
-The legacy validation-split tuning had a known overlap issue between validation and early evaluation splits. The new design eliminates this entirely: every trial is a full 69-split evaluation, so there is no separate validation set whose splits could overlap with the benchmark.
-
 ## Working with this Repository
 
 ### Prerequisites
@@ -213,10 +199,7 @@ mypastjob <days>        # Job history for the past N days (max 30)
 
 ## References
 
-- Sanz-Cruzado, J., Droukas, N., and McCreadie, R. (2024). *FAR-Trans: An Investment Dataset for Financial Asset Recommendation*. arXiv:2407.08692.
-- Sanz-Cruzado, J., McCreadie, R., Droukas, N., Macdonald, C., and Ounis, I. (2022). *On Transaction-Based Metrics as a Proxy for Profitability of Financial Asset Recommendations*. FinRec @ RecSys 2022.
-- He, X., Deng, K., Wang, X., Li, Y., Zhang, Y., and Wang, M. (2020). *LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation*. SIGIR 2020.
-- Barber, B. M., and Odean, T. (2000). *Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors*. Journal of Finance 55(2).
-- Barber, B. M., and Odean, T. (2008). *All That Glitters: The Effect of Attention and News on the Buying Behavior of Individual and Institutional Investors*. Review of Financial Studies 21(2).
-- Kumar, A. (2009). *Who Gambles in the Stock Market?* Journal of Finance 64(4).
-- Kim, J., Lee, S., et al. (2025). *Risk-Aware Utility Re-Ranking for Financial Asset Recommendation*. (Working paper / proceedings; see `papers/Risk-Aware Utility Re-Ranking for Financial Asset Recommendation/paper.md`.)
+- Sanz-Cruzado, J., Droukas, N., and McCreadie, R. (2024). *FAR-Trans: An Investment Dataset for Financial Asset Recommendation*. IJCAI Workshop on Recommender Systems in Finance. See `papers/FAR-Trans An Investment Dataset for Financial Asset Recommendation/paper.md`.
+- Sanz-Cruzado, J., McCreadie, R., Droukas, N., Macdonald, C., and Ounis, I. (2026). *Investors Are (Not) Always Right: A Comparison of Transaction-Based and Profitability-Based Metrics for Financial Asset Recommendations*. ACM Transactions on Information Systems 44(2), Article 51. See `papers/Investors Are (Not) Always Right/paper.md`.
+- Ghiye, A., Barreau, B., Carlier, L., and Vazirgiannis, M. *Rolling Forward: Enhancing LightGCN with Causal Graph Convolution for Credit Bond Recommendation*. See `papers/Causal Graph Convolution for Credit Bond Recommendation/paper.md`.
+- Sakurai, K., Ogawa, T., Haseyama, M., Anan, A., and Nakagawa, K. *Risk-Aware Utility Re-Ranking for Financial Asset Recommendation*. See `papers/Risk-Aware Utility Re-Ranking for Financial Asset Recommendation/paper.md`.

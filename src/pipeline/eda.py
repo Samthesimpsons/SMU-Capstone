@@ -183,8 +183,6 @@ def _customer_self_discordance(
     if values.size == 0:
         return values, {
             "mean_discordant_share": 0.0,
-            "median_discordant_share": 0.0,
-            "fraction_with_majority_discordance": 0.0,
             "fraction_fully_coherent": 0.0,
             "fraction_fully_discordant": 0.0,
             "discordant_share_histogram_edges": histogram_edges,
@@ -193,8 +191,6 @@ def _customer_self_discordance(
     counts, _ = np.histogram(values, bins=np.array(histogram_edges))
     summary = {
         "mean_discordant_share": float(values.mean()),
-        "median_discordant_share": float(np.median(values)),
-        "fraction_with_majority_discordance": float((values > 0.5).mean()),
         "fraction_fully_coherent": float((values == 0.0).mean()),
         "fraction_fully_discordant": float((values == 1.0).mean()),
         "discordant_share_histogram_edges": histogram_edges,
