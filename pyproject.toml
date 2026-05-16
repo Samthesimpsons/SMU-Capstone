@@ -40,9 +40,9 @@ explicit = true
 torch = { index = "pytorch-cu129" }
 
 [tool.poe.tasks]
-lint = { cmd = "uv run ruff check src/", help = "Lint source files with ruff" }
-format = { cmd = "uv run ruff format src/", help = "Format source files with ruff" }
-type = { cmd = "uv run ty check src/", help = "Type-check source files with ty" }
+lint = { cmd = "uv run ruff check src/ notebooks/ --fix", help = "Lint source files and notebooks with ruff (applies safe fixes in place)" }
+format = { cmd = "uv run ruff format src/ notebooks/", help = "Format source files and notebooks with ruff" }
+type = { cmd = "uv run ty check src/ notebooks/", help = "Type-check source files and notebooks with ty" }
 setup = { cmd = "uv run lefthook install", help = "Install git hooks via lefthook" }
 jlab = { cmd = "uv run --with jupyter jupyter lab", help = "Run Jupyter Lab IDE" }
 
