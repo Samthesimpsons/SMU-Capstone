@@ -62,19 +62,45 @@ CONTRAST_COLOURS: dict[str, str] = {
 CONTRAST_ORDER: list[str] = list(CONTRAST_DESCRIPTIONS.keys())
 SIGNIFICANCE_ALPHA: float = 0.05
 
+SINGLE_COLUMN_WIDTH_INCHES: float = 3.3
+DEFAULT_FIGURE_HEIGHT_INCHES: float = 2.2
+
 PLOT_RC: dict[str, Any] = {
-    "figure.figsize": (8, 4.5),
-    "figure.dpi": 110,
+    "figure.figsize": (SINGLE_COLUMN_WIDTH_INCHES, DEFAULT_FIGURE_HEIGHT_INCHES),
+    "figure.dpi": 150,
+    "savefig.dpi": 300,
+    "savefig.bbox": "tight",
+    "savefig.pad_inches": 0.02,
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+    "font.family": "serif",
+    "font.serif": [
+        "Nimbus Roman",
+        "Times",
+        "Times New Roman",
+        "Liberation Serif",
+        "DejaVu Serif",
+    ],
+    "mathtext.fontset": "stix",
+    "font.size": 8,
     "axes.spines.top": False,
     "axes.spines.right": False,
     "axes.grid": True,
     "grid.linestyle": "--",
     "grid.alpha": 0.4,
-    "axes.titlesize": 12,
-    "axes.labelsize": 11,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "legend.fontsize": 10,
+    "grid.linewidth": 0.4,
+    "axes.linewidth": 0.6,
+    "axes.titlesize": 8,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "xtick.major.width": 0.5,
+    "ytick.major.width": 0.5,
+    "legend.fontsize": 7,
+    "legend.frameon": False,
+    "lines.linewidth": 1.0,
+    "lines.markersize": 4,
+    "patch.linewidth": 0.5,
 }
 
 
@@ -126,12 +152,12 @@ def _format_p_value(p: float) -> str:
 
 
 def _finalise(fig: plt.Figure, save_path: Path | None) -> None:
-    """Either render inline or write `fig` to `save_path` as SVG and close it."""
+    """Either render inline or write `fig` to `save_path` as PDF and close it."""
     if save_path is None:
         plt.show()
         return
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    fig.savefig(save_path, format="pdf", bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
 
 
@@ -147,12 +173,7 @@ def plot_rq1_discordance_distribution(
         [{"d": int(k), "count": v, "share": v / total} for k, v in counts.items()]
     ).sort_values("d")
     distribution["label"] = distribution["d"].map(
-        {
-            0: "d=0 (exact match)",
-            1: "d=1 (within tolerance)",
-            2: "d=2",
-            3: "d=3",
-        }
+        {0: "$d{=}0$", 1: "$d{=}1$", 2: "$d{=}2$", 3: "$d{=}3$"}
     )
 
     print(
@@ -162,55 +183,63 @@ def plot_rq1_discordance_distribution(
         f"Mean profile discordance:  {discordance['mean_discordance']:.3f} bands"
     )
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(SINGLE_COLUMN_WIDTH_INCHES, 2.4))
     colours = ["#2ca02c", "#9bcd9b", "#ff9900", "#d62728"]
     ax.bar(distribution["label"], distribution["share"], color=colours)
     for x, value in enumerate(distribution["share"]):
-        ax.text(x, value + 0.01, f"{value:.1%}", ha="center", va="bottom")
-    ax.set_ylim(0, 0.7)
+        ax.text(x, value + 0.01, f"{value:.1%}", ha="center", va="bottom", fontsize=6)
+    ax.set_ylim(0, 0.78)
     ax.set_ylabel("Share of scoreable Buys")
-    ax.set_title(f"Discordance distribution across {total:,} Buy transactions")
     ax.grid(axis="x", visible=False)
 
     coherent_share = discordance["fraction_coherent_default"]
     discoherent_share = 1.0 - coherent_share
     _draw_coherence_bracket(
-        ax, 0, 1, 0.56, f"Coherent (d≤1): {coherent_share:.1%}", "#1f4e1f"
+        ax, 0, 1, 0.62, f"Coherent ($d{{\\leq}}1$): {coherent_share:.1%}", "#1f4e1f"
     )
     _draw_coherence_bracket(
-        ax, 2, 3, 0.56, f"Discoherent (d≥2): {discoherent_share:.1%}", "#7a1f1f"
+        ax,
+        2,
+        3,
+        0.62,
+        f"Discordant ($d{{\\geq}}2$): {discoherent_share:.1%}",
+        "#7a1f1f",
     )
 
     ax.text(
         0.98,
         0.97,
-        f"Mean profile discordance: {discordance['mean_discordance']:.3f} bands",
+        f"Mean $d$ = {discordance['mean_discordance']:.3f} bands",
         transform=ax.transAxes,
         ha="right",
         va="top",
-        fontsize=9,
+        fontsize=6,
         bbox=dict(
-            boxstyle="round,pad=0.35", facecolor="white", edgecolor="#888", alpha=0.9
+            boxstyle="round,pad=0.25",
+            facecolor="white",
+            edgecolor="#888",
+            linewidth=0.4,
+            alpha=0.9,
         ),
     )
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.3)
     _finalise(fig, save_path)
 
 
 def _draw_coherence_bracket(
     ax: plt.Axes, x_left: float, x_right: float, y: float, label: str, colour: str
 ) -> None:
-    ax.plot([x_left, x_right], [y, y], color=colour, linewidth=1.5)
-    ax.plot([x_left, x_left], [y - 0.015, y], color=colour, linewidth=1.5)
-    ax.plot([x_right, x_right], [y - 0.015, y], color=colour, linewidth=1.5)
+    ax.plot([x_left, x_right], [y, y], color=colour, linewidth=0.9)
+    ax.plot([x_left, x_left], [y - 0.015, y], color=colour, linewidth=0.9)
+    ax.plot([x_right, x_right], [y - 0.015, y], color=colour, linewidth=0.9)
     ax.text(
         (x_left + x_right) / 2,
-        y + 0.015,
+        y + 0.012,
         label,
         ha="center",
         va="bottom",
-        fontsize=10,
+        fontsize=6.5,
         color=colour,
         fontweight="bold",
     )
@@ -241,36 +270,34 @@ def plot_rq1_self_discordance(
     total_customers = counts.sum()
     shares = counts / total_customers
     bin_labels = [
-        f"{int(edges[i] * 100)}-{int(edges[i + 1] * 100)}%" for i in range(len(counts))
+        f"{int(edges[i] * 100)}-{int(edges[i + 1] * 100)}" for i in range(len(counts))
     ]
 
     bar_colours = ["#cccccc"] * len(counts)
     bar_colours[0] = "#2ca02c"
     bar_colours[-1] = "#d62728"
 
-    fig, ax = plt.subplots(figsize=(10, 4.5))
+    fig, ax = plt.subplots(figsize=(SINGLE_COLUMN_WIDTH_INCHES, 2.6))
     positions = np.arange(len(counts))
-    ax.bar(positions, shares, color=bar_colours, edgecolor="white")
-    for x, value in zip(positions, shares):
-        ax.text(x, value + 0.01, f"{value:.1%}", ha="center", va="bottom", fontsize=9)
+    ax.bar(positions, shares, color=bar_colours, edgecolor="white", linewidth=0.3)
 
     ax.annotate(
-        f"Fully coherent (exactly 0%): {self_disc['fraction_fully_coherent']:.1%}",
+        f"Fully coherent: {self_disc['fraction_fully_coherent']:.1%}",
         xy=(positions[0], shares[0]),
-        xytext=(positions[0] + 1.8, shares[0] + 0.10),
-        arrowprops=dict(arrowstyle="-", linestyle=":", color="#1f4e1f", linewidth=1.2),
-        fontsize=9,
+        xytext=(positions[0] + 1.5, shares[0] + 0.05),
+        arrowprops=dict(arrowstyle="-", linestyle=":", color="#1f4e1f", linewidth=0.7),
+        fontsize=6.5,
         color="#1f4e1f",
         fontweight="bold",
         ha="left",
         va="center",
     )
     ax.annotate(
-        f"Fully discordant (exactly 100%): {self_disc['fraction_fully_discordant']:.1%}",
+        f"Fully discordant: {self_disc['fraction_fully_discordant']:.1%}",
         xy=(positions[-1], shares[-1]),
-        xytext=(positions[-1] - 1.8, shares[-1] + 0.30),
-        arrowprops=dict(arrowstyle="-", linestyle=":", color="#7a1f1f", linewidth=1.2),
-        fontsize=9,
+        xytext=(positions[-1] - 1.5, shares[-1] + 0.18),
+        arrowprops=dict(arrowstyle="-", linestyle=":", color="#7a1f1f", linewidth=0.7),
+        fontsize=6.5,
         color="#7a1f1f",
         fontweight="bold",
         ha="right",
@@ -278,37 +305,23 @@ def plot_rq1_self_discordance(
     )
 
     mean_x_position = population_discordance_rate * len(counts) - 0.5
-    ax.axvline(mean_x_position, color="black", linestyle="--", linewidth=1.2)
+    ax.axvline(mean_x_position, color="black", linestyle="--", linewidth=0.7)
     ax.text(
-        mean_x_position + 0.1,
-        max(shares) * 0.55,
-        f"Population mean ({population_discordance_rate:.1%})\n",
-        fontsize=9,
+        mean_x_position + 0.15,
+        max(shares) * 0.28,
+        f"Pop. mean\n{population_discordance_rate:.1%}",
+        fontsize=6,
         va="top",
     )
 
     ax.set_xticks(positions)
-    ax.set_xticklabels(bin_labels, rotation=20)
+    ax.set_xticklabels(bin_labels, rotation=45, ha="right", fontsize=6)
     ax.set_ylim(0, max(shares) * 1.3)
     ax.set_ylabel("Share of customers")
-    ax.set_xlabel("Per-customer discordant share (fraction of Buys with d >= 2)")
-    ax.set_title("Per-customer self-discordance is bimodal")
+    ax.set_xlabel("Per-customer discordant share (\\%)")
     ax.grid(axis="x", visible=False)
 
-    ax.text(
-        0.98,
-        0.97,
-        f"Mean Buys per customer: {mean_buys_per_scoreable_customer:.2f}",
-        transform=ax.transAxes,
-        ha="right",
-        va="top",
-        fontsize=9,
-        bbox=dict(
-            boxstyle="round,pad=0.35", facecolor="white", edgecolor="#888", alpha=0.9
-        ),
-    )
-
-    plt.tight_layout()
+    plt.tight_layout(pad=0.3)
     _finalise(fig, save_path)
 
 
@@ -334,7 +347,7 @@ def plot_rq1_per_band_coherence(
     )
     band_table = band_table.sort_values("band_label")
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(SINGLE_COLUMN_WIDTH_INCHES, 2.3))
     colours = [BAND_COLOURS[label] for label in band_table["band_label"]]
     ax.bar(
         band_table["band_label"].astype(str),
@@ -346,17 +359,17 @@ def plot_rq1_per_band_coherence(
     ):
         ax.text(
             x,
-            share + 0.01,
+            share + 0.015,
             f"{share:.1%}\nn={count:,}",
             ha="center",
             va="bottom",
-            fontsize=9,
+            fontsize=6,
         )
-    ax.set_ylim(0, 1.05)
-    ax.set_ylabel("Coherent share (d <= 1)")
-    ax.set_title("Per-band coherent share: U-shape on the ordinal extremes")
+    ax.set_ylim(0, 1.15)
+    ax.set_ylabel("Coherent share ($d{\\leq}1$)")
+    ax.tick_params(axis="x", labelsize=7)
     ax.grid(axis="x", visible=False)
-    plt.tight_layout()
+    plt.tight_layout(pad=0.3)
     _finalise(fig, save_path)
 
 
@@ -370,12 +383,13 @@ def plot_rq1_yearly_discordance(
     year_values = [year_disc[y] for y in years]
     mean_across_years = float(np.mean(year_values))
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax = plt.subplots(figsize=(SINGLE_COLUMN_WIDTH_INCHES, 2.4))
     ax.plot(
         years,
         year_values,
         marker="o",
-        linewidth=2,
+        linewidth=1.2,
+        markersize=4,
         color="#1f77b4",
         label="Per-year mean",
         zorder=3,
@@ -384,39 +398,39 @@ def plot_rq1_yearly_discordance(
         mean_across_years,
         linestyle="--",
         color="black",
-        linewidth=1.2,
-        label=f"Average across years = {mean_across_years:.2f}",
+        linewidth=0.8,
+        label=f"Avg. = {mean_across_years:.2f}",
     )
 
     for x, year in enumerate(years):
         coverage = buy_coverage[year]
-        partial_flag = " *" if _is_partial_year(coverage) else ""
+        partial_flag = "*" if _is_partial_year(coverage) else ""
         ax.annotate(
-            f"n = {coverage['count']:,}{partial_flag}\n{year_values[x]:.2f}",
+            f"{year_values[x]:.2f}{partial_flag}",
             xy=(year, year_values[x]),
-            xytext=(0, 12),
+            xytext=(0, 8),
             textcoords="offset points",
             ha="center",
             va="bottom",
-            fontsize=9,
+            fontsize=6,
         )
 
     partial_years = [y for y in years if _is_partial_year(buy_coverage[y])]
-    caption = (
-        " * partial year ("
-        + ", ".join(
-            f"Cutt off date: {buy_coverage[y]['last_date']}" for y in partial_years
+    if partial_years:
+        caption = (
+            "* partial year ("
+            + ", ".join(f"to {buy_coverage[y]['last_date']}" for y in partial_years)
+            + ")"
         )
-        + ")"
-    )
-    ax.text(0.01, -0.18, caption, transform=ax.transAxes, fontsize=8, color="#666666")
+        ax.text(
+            0.01, -0.28, caption, transform=ax.transAxes, fontsize=6, color="#666666"
+        )
 
     ax.set_ylim(0.6, 1.15)
-    ax.set_ylabel("Mean discordance (bands)")
+    ax.set_ylabel("Mean discordance")
     ax.set_xlabel("Calendar year")
-    ax.set_title("Discordance is stable across the macro window")
-    ax.legend(loc="lower left", fontsize=9)
-    plt.tight_layout()
+    ax.legend(loc="lower left", fontsize=6.5)
+    plt.tight_layout(pad=0.3)
     _finalise(fig, save_path)
 
 
@@ -487,10 +501,6 @@ def plot_rq2_forest(
     save_path: Path | None = None,
 ) -> None:
     """Forest plot of every RQ2 regression coefficient with 95% CIs in pp."""
-    coherent_mean = rq2_summary["mean_realised_return_coherent"]
-    discordant_mean = rq2_summary["mean_realised_return_discordant"]
-    raw_slice_gap_pp = (coherent_mean - discordant_mean) * 100
-
     filtered = _rq2_filtered_coefficients(coefficients)
     plot_df = filtered.copy()
     plot_df["significant"] = plot_df["p_value"] < SIGNIFICANCE_ALPHA
@@ -504,7 +514,7 @@ def plot_rq2_forest(
     ns_colour = "#888888"
     point_colours = [sig_colour if s else ns_colour for s in plot_df["significant"]]
 
-    fig, ax = plt.subplots(figsize=(11, 6.5))
+    fig, ax = plt.subplots(figsize=(SINGLE_COLUMN_WIDTH_INCHES, 3.6))
     for y, row, colour in zip(y_positions, plot_df.itertuples(), point_colours):
         ax.errorbar(
             row.estimate_pp,
@@ -516,70 +526,30 @@ def plot_rq2_forest(
             fmt="o",
             color=colour,
             ecolor=colour,
-            elinewidth=1.6,
-            capsize=4,
-            markersize=7,
+            elinewidth=0.9,
+            capsize=2,
+            markersize=4,
         )
-        label = (
-            f"{row.estimate_pp:+.2f} pp  "
-            f"(SE {row.std_error * 100:.2f}, "
-            f"p={_format_p_value(row.p_value)})"
-        )
+        label = f"{row.estimate_pp:+.2f} pp  (p={_format_p_value(row.p_value)})"
         ax.text(
-            row.ci_upper_pp + 0.6,
+            row.ci_upper_pp + 0.4,
             y,
             label,
             va="center",
             ha="left",
-            fontsize=8.5,
+            fontsize=6,
             color=colour,
         )
 
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
+    ax.axvline(0, color="black", linewidth=0.6, linestyle="--")
     ax.set_yticks(y_positions)
-    ax.set_yticklabels(plot_df["term"], fontsize=9)
-    ax.set_xlabel("Coefficient estimate (pp on 6-month realised return)")
-    fig.suptitle(
-        "realised_return ~ is_coherent + asset_volatility + C(customer_type) + C(year)",
-        fontsize=12,
-        fontweight="bold",
-    )
+    ax.set_yticklabels(plot_df["term"], fontsize=6.5)
+    ax.set_xlabel("Coefficient estimate (pp on 6-mo. realised return)")
     ax.grid(axis="x", linestyle=":", alpha=0.4)
     ax.set_axisbelow(True)
     ax.set_xlim(
         min(plot_df["ci_lower_pp"].min(), 0) - 2,
-        plot_df["ci_upper_pp"].max() + 28,
-    )
-
-    summary_rows = [
-        (
-            "Mean realised return (overall):",
-            f"{rq2_summary['mean_realised_return_overall']:+.3%}",
-        ),
-        ("Mean realised return (coherent):", f"{coherent_mean:+.3%}"),
-        ("Mean realised return (discordant):", f"{discordant_mean:+.3%}"),
-        ("Raw slice gap (coh. - disc.):", f"{raw_slice_gap_pp:+.2f} pp"),
-        ("Full regression terms:", f"{len(coefficients)}"),
-        ("References absorbed in Intercept:", "2018, Inactive"),
-    ]
-    label_width = max(len(row_label) for row_label, _ in summary_rows) + 2
-    value_width = max(len(row_value) for _, row_value in summary_rows)
-    summary_text = "\n".join(
-        f"{row_label:<{label_width}}{row_value:>{value_width}}"
-        for row_label, row_value in summary_rows
-    )
-    ax.text(
-        0.985,
-        0.97,
-        summary_text,
-        transform=ax.transAxes,
-        ha="right",
-        va="top",
-        fontsize=8.5,
-        family="monospace",
-        bbox=dict(
-            boxstyle="round,pad=0.45", facecolor="white", edgecolor="#888", alpha=0.95
-        ),
+        plot_df["ci_upper_pp"].max() + 26,
     )
 
     legend_handles = [
@@ -589,8 +559,8 @@ def plot_rq2_forest(
             marker="o",
             color="white",
             markerfacecolor=sig_colour,
-            markersize=8,
-            label=f"Significant (p < {SIGNIFICANCE_ALPHA})",
+            markersize=5,
+            label=f"$p < {SIGNIFICANCE_ALPHA}$",
         ),
         plt.Line2D(
             [0],
@@ -598,12 +568,12 @@ def plot_rq2_forest(
             marker="o",
             color="white",
             markerfacecolor=ns_colour,
-            markersize=8,
-            label=f"Not significant (p >= {SIGNIFICANCE_ALPHA})",
+            markersize=5,
+            label=f"$p \\geq {SIGNIFICANCE_ALPHA}$",
         ),
     ]
-    ax.legend(handles=legend_handles, loc="lower right", fontsize=9)
-    plt.tight_layout()
+    ax.legend(handles=legend_handles, loc="lower right", fontsize=6.5)
+    plt.tight_layout(pad=0.3)
     _finalise(fig, save_path)
 
 
@@ -704,7 +674,7 @@ def plot_rq3_per_band(
     group_width = 0.78
     bar_width = group_width / max(len(models), 1)
 
-    fig, ax = plt.subplots(figsize=(11, 5.5))
+    fig, ax = plt.subplots(figsize=(SINGLE_COLUMN_WIDTH_INCHES, 2.6))
     bar_handles = []
     for i, model in enumerate(models):
         rows = (
@@ -722,16 +692,17 @@ def plot_rq3_per_band(
             color=model_colours[model],
             label=model,
             edgecolor="white",
+            linewidth=0.3,
         )
         bar_handles.append(bars)
         for x, pc, lift in zip(xs, rows["mean_pc"], rows["lift"]):
             ax.text(
                 x,
                 pc + 0.012,
-                f"Mean PC: {pc:.1%}\nPC Lift: {lift:.2f}",
+                f"{pc:.0%}\n{lift:.2f}x",
                 ha="center",
                 va="bottom",
-                fontsize=8,
+                fontsize=5.5,
                 color=model_colours[model],
                 fontweight="bold",
             )
@@ -740,50 +711,29 @@ def plot_rq3_per_band(
         pi_val = pi_series[band]
         left = x_positions[j] - group_width / 2
         right = x_positions[j] + group_width / 2
-        ax.hlines(pi_val, left, right, colors="black", linestyles="--", linewidth=1.4)
-        ax.text(
-            right,
-            pi_val - 0.008,
-            f"pi_b={pi_val:.1%}",
-            va="top",
-            ha="right",
-            fontsize=8,
-            color="black",
-        )
+        ax.hlines(pi_val, left, right, colors="black", linestyles="--", linewidth=0.7)
 
     ax.set_xticks(x_positions)
-    ax.set_xticklabels(BANDS_ORDER)
-    ax.set_ylabel("Mean profile-coherence rate (PC@k)")
-    ax.set_ylim(0, max(summary["mean_pc"].max(), pi_series.max()) * 1.3)
+    ax.set_xticklabels(BANDS_ORDER, fontsize=6.5)
+    ax.set_ylabel("Mean PC@10")
+    ax.set_ylim(0, max(summary["mean_pc"].max(), pi_series.max()) * 1.4)
     ax.grid(axis="y", linestyle=":", alpha=0.4)
     ax.set_axisbelow(True)
-
-    fig.suptitle(
-        "Mean profile-coherence by customer band and model",
-        fontsize=12,
-        fontweight="bold",
-    )
-    ax.set_title(
-        "Averaged across 69 monthly splits; PC Lift = mean PC / random-baseline pi_b",
-        fontsize=9,
-        style="italic",
-    )
 
     baseline_handle = plt.Line2D(
         [0],
         [0],
         color="black",
         linestyle="--",
-        linewidth=1.4,
-        label="Random baseline pi_b",
+        linewidth=0.7,
+        label="Random baseline $\\pi(b)$",
     )
     ax.legend(
         handles=[*bar_handles, baseline_handle],
         loc="upper left",
-        fontsize=9,
-        title="Model",
+        fontsize=6,
     )
-    plt.tight_layout()
+    plt.tight_layout(pad=0.3)
     _finalise(fig, save_path)
 
 
@@ -918,135 +868,112 @@ def style_rq4_paired_table(paired_table: pd.DataFrame) -> pd.DataFrame:
 def plot_rq4_paired_deltas(
     paired_table: pd.DataFrame, save_path: Path | None = None
 ) -> None:
-    """Per-metric grouped barh of mean Δ across the three contrasts."""
-    fig, axes = plt.subplots(1, len(PC_METRIC_ORDER), figsize=(22, 4.5), sharey=True)
-
-    for axis, metric in zip(axes, PC_METRIC_ORDER):
-        subset = paired_table[paired_table["metric"] == metric].set_index("contrast")
-        deltas = np.array([subset.loc[c, "mean_delta"] for c in CONTRAST_ORDER])
-        y_positions = np.arange(len(CONTRAST_ORDER))
-        bar_colors = [CONTRAST_COLOURS[c] for c in CONTRAST_ORDER]
-
-        axis.barh(
-            y_positions, deltas, color=bar_colors, edgecolor="black", linewidth=0.6
-        )
-        axis.axvline(0, color="black", linewidth=0.8)
-        axis.set_yticks(y_positions)
-        axis.set_yticklabels(CONTRAST_ORDER)
-        axis.set_title(metric, fontsize=11, weight="bold")
-        axis.grid(True, axis="x", linewidth=0.3, alpha=0.5)
-        axis.invert_yaxis()
-
-        max_abs = max(np.abs(deltas).max(), 1e-6)
-        axis.set_xlim(-max_abs * 1.9, max_abs * 1.9)
-        span = axis.get_xlim()[1] - axis.get_xlim()[0]
-
-        for y_pos, delta in zip(y_positions, deltas):
-            is_positive = delta >= 0
-            offset = 0.03 * span if is_positive else -0.03 * span
-            horizontal_alignment = "left" if is_positive else "right"
-            axis.text(
-                delta + offset,
-                y_pos,
-                f"{delta:+.5f}",
-                va="center",
-                ha=horizontal_alignment,
-                fontsize=9,
-                bbox=dict(
-                    boxstyle="round,pad=0.3",
-                    facecolor="white",
-                    edgecolor="gray",
-                    linewidth=0.6,
-                ),
-            )
-
-    axes[0].set_ylabel("Contrast")
-    fig.suptitle(
-        "Paired per-split contrasts: mean Δ (treatment − control) across 69 monthly splits",
-        fontsize=13,
-        weight="bold",
+    """Per-metric horizontal bars of mean Delta across the three contrasts, stacked vertically."""
+    _plot_rq4_paired_grid(
+        paired_table=paired_table,
+        value_column="mean_delta",
+        formatter=lambda v: f"{v:+.4f}",
+        save_path=save_path,
+        x_limits=None,
+        reference_line=0.0,
+        reference_style="solid",
     )
-    fig.legend(
-        handles=_contrast_legend_handles(),
-        loc="lower center",
-        ncol=3,
-        bbox_to_anchor=(0.5, -0.02),
-        frameon=True,
-        fontsize=9.5,
-    )
-    fig.tight_layout(rect=(0, 0.05, 1, 0.94))
-    _finalise(fig, save_path)
 
 
 def plot_rq4_paired_win_rates(
     paired_table: pd.DataFrame, save_path: Path | None = None
 ) -> None:
-    """Per-metric grouped barh of win rate across the three contrasts."""
-    fig, axes = plt.subplots(1, len(PC_METRIC_ORDER), figsize=(22, 4.5), sharey=True)
+    """Per-metric horizontal bars of win rate across the three contrasts, stacked vertically."""
+    _plot_rq4_paired_grid(
+        paired_table=paired_table,
+        value_column="win_rate",
+        formatter=lambda v: f"{v:.0%}",
+        save_path=save_path,
+        x_limits=(0.0, 1.0),
+        reference_line=0.5,
+        reference_style="dashed",
+        x_ticks=[0.0, 0.25, 0.5, 0.75, 1.0],
+        x_tick_labels=["0\\%", "25\\%", "50\\%", "75\\%", "100\\%"],
+    )
 
-    for axis, metric in zip(axes, PC_METRIC_ORDER):
+
+def _plot_rq4_paired_grid(
+    paired_table: pd.DataFrame,
+    value_column: str,
+    formatter: Any,
+    save_path: Path | None,
+    x_limits: tuple[float, float] | None,
+    reference_line: float,
+    reference_style: str,
+    x_ticks: list[float] | None = None,
+    x_tick_labels: list[str] | None = None,
+) -> None:
+    metrics_top_to_bottom = list(PC_METRIC_ORDER)
+    fig, axes = plt.subplots(
+        len(metrics_top_to_bottom),
+        1,
+        figsize=(SINGLE_COLUMN_WIDTH_INCHES, 6.0),
+        sharex=(x_limits is not None),
+    )
+
+    bar_colors = [CONTRAST_COLOURS[c] for c in CONTRAST_ORDER]
+    y_positions = np.arange(len(CONTRAST_ORDER))
+
+    for axis, metric in zip(axes, metrics_top_to_bottom):
         subset = paired_table[paired_table["metric"] == metric].set_index("contrast")
-        win_rates = np.array([subset.loc[c, "win_rate"] for c in CONTRAST_ORDER])
-        y_positions = np.arange(len(CONTRAST_ORDER))
-        bar_colors = [CONTRAST_COLOURS[c] for c in CONTRAST_ORDER]
+        values = np.array([subset.loc[c, value_column] for c in CONTRAST_ORDER])
 
         axis.barh(
-            y_positions,
-            win_rates,
-            color=bar_colors,
-            edgecolor="black",
-            linewidth=0.6,
+            y_positions, values, color=bar_colors, edgecolor="black", linewidth=0.3
         )
-        axis.axvline(0.5, color="black", linestyle="--", linewidth=1.0, alpha=0.7)
+        axis.axvline(
+            reference_line,
+            color="black",
+            linewidth=0.6,
+            linestyle="--" if reference_style == "dashed" else "-",
+            alpha=0.7,
+        )
         axis.set_yticks(y_positions)
-        axis.set_yticklabels(CONTRAST_ORDER)
-        axis.set_title(metric, fontsize=11, weight="bold")
-        axis.set_xlim(0, 1.0)
-        axis.set_xticks([0.0, 0.25, 0.5, 0.75, 1.0])
-        axis.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
+        axis.set_yticklabels(CONTRAST_ORDER, fontsize=6)
+        axis.set_ylabel(
+            metric, fontsize=7, rotation=0, ha="right", va="center", labelpad=2
+        )
+        axis.tick_params(axis="x", labelsize=6)
         axis.grid(True, axis="x", linewidth=0.3, alpha=0.5)
         axis.invert_yaxis()
 
-        for y_pos, win in zip(y_positions, win_rates):
+        if x_limits is not None:
+            axis.set_xlim(*x_limits)
+        else:
+            max_abs = max(np.abs(values).max(), 1e-6)
+            axis.set_xlim(-max_abs * 2.0, max_abs * 2.0)
+        if x_ticks is not None:
+            axis.set_xticks(x_ticks)
+        if x_tick_labels is not None:
+            axis.set_xticklabels(x_tick_labels)
+
+        span = axis.get_xlim()[1] - axis.get_xlim()[0]
+        for y_pos, value in zip(y_positions, values):
+            goes_right = value >= 0
+            offset = 0.025 * span if goes_right else -0.025 * span
             axis.text(
-                win + 0.02 if win < 0.85 else win - 0.02,
+                value + offset,
                 y_pos,
-                f"{win:.0%}",
+                formatter(value),
                 va="center",
-                ha="left" if win < 0.85 else "right",
-                fontsize=9.5,
-                weight="bold",
-                bbox=dict(
-                    boxstyle="round,pad=0.3",
-                    facecolor="white",
-                    edgecolor="gray",
-                    linewidth=0.6,
-                ),
+                ha="left" if goes_right else "right",
+                fontsize=5.5,
             )
 
-    axes[0].set_ylabel("Contrast")
-    fig.suptitle(
-        "Paired per-split contrasts: win rate (share of 69 splits where treatment > control)",
-        fontsize=13,
-        weight="bold",
-    )
-    coin_flip_handle = plt.Line2D(
-        [0],
-        [0],
-        color="black",
-        linestyle="--",
-        linewidth=1.0,
-        label="Coin-flip reference (50%)",
-    )
     fig.legend(
-        handles=[*_contrast_legend_handles(), coin_flip_handle],
+        handles=_contrast_legend_handles(),
         loc="lower center",
-        ncol=4,
+        ncol=1,
         bbox_to_anchor=(0.5, -0.02),
-        frameon=True,
-        fontsize=9.5,
+        frameon=False,
+        fontsize=6,
     )
-    fig.tight_layout(rect=(0, 0.05, 1, 0.94))
+    fig.tight_layout(rect=(0, 0.06, 1, 1.0), pad=0.4, h_pad=0.6)
     _finalise(fig, save_path)
 
 
@@ -1057,18 +984,18 @@ def _contrast_legend_handles() -> list[Any]:
             1,
             1,
             color=CONTRAST_COLOURS[c],
-            label=f"{c}  :  {CONTRAST_DESCRIPTIONS[c]}",
+            label=f"{c}: {CONTRAST_DESCRIPTIONS[c]}",
         )
         for c in CONTRAST_ORDER
     ]
 
 
-def export_figures_as_svg(
+def export_figures_as_pdf(
     output_directory: Path,
     eda_summary: dict[str, Any],
     paths: NotebookPaths,
 ) -> list[Path]:
-    """Render every findings figure to SVG under `output_directory` and return the written paths."""
+    """Render every findings figure to PDF under `output_directory` and return the written paths."""
     output_directory.mkdir(parents=True, exist_ok=True)
     coefficients, rq2_summary = load_rq2_artefacts(paths.rq2_directory)
     rq3_per_band_summary, pi_series = build_rq3_per_band_summary(
@@ -1081,35 +1008,35 @@ def export_figures_as_svg(
 
     figure_plan: list[tuple[str, Any]] = [
         (
-            "rq1_discordance_distribution.svg",
+            "rq1_discordance_distribution.pdf",
             lambda p: plot_rq1_discordance_distribution(eda_summary, save_path=p),
         ),
         (
-            "rq1_self_discordance.svg",
+            "rq1_self_discordance.pdf",
             lambda p: plot_rq1_self_discordance(eda_summary, save_path=p),
         ),
         (
-            "rq1_per_band_coherence.svg",
+            "rq1_per_band_coherence.pdf",
             lambda p: plot_rq1_per_band_coherence(eda_summary, save_path=p),
         ),
         (
-            "rq1_yearly_discordance.svg",
+            "rq1_yearly_discordance.pdf",
             lambda p: plot_rq1_yearly_discordance(eda_summary, save_path=p),
         ),
         (
-            "rq2_coefficient_forest.svg",
+            "rq2_coefficient_forest.pdf",
             lambda p: plot_rq2_forest(coefficients, rq2_summary, save_path=p),
         ),
         (
-            "rq3_per_band_pc.svg",
+            "rq3_per_band_pc.pdf",
             lambda p: plot_rq3_per_band(rq3_per_band_summary, pi_series, save_path=p),
         ),
         (
-            "rq4_paired_deltas.svg",
+            "rq4_paired_deltas.pdf",
             lambda p: plot_rq4_paired_deltas(rq4_paired, save_path=p),
         ),
         (
-            "rq4_paired_win_rates.svg",
+            "rq4_paired_win_rates.pdf",
             lambda p: plot_rq4_paired_win_rates(rq4_paired, save_path=p),
         ),
     ]

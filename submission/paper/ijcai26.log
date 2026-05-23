@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.5.22)  23 MAY 2026 15:08
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.5.22)  23 MAY 2026 16:30
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -487,103 +487,89 @@ File: omsptm.fd
 LaTeX Font Info:    Font shape `OMS/ptm/m/n' in size <10> not available
 (Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 7.
 ) [3] (./sections/05-results.tex
-Overfull \hbox (1.11452pt too wide) in paragraph at lines 79--93
+<figures/rq1_discordance_distribution.pdf, id=209, 236.16669pt x 170.603pt>
+File: figures/rq1_discordance_distribution.pdf Graphic file (type pdf)
+<use figures/rq1_discordance_distribution.pdf>
+Package pdftex.def Info: figures/rq1_discordance_distribution.pdf  used on input line 16.
+(pdftex.def)             Requested size: 243.91125pt x 176.20462pt.
+<figures/rq1_self_discordance.pdf, id=211, 236.05692pt x 185.24121pt>
+File: figures/rq1_self_discordance.pdf Graphic file (type pdf)
+<use figures/rq1_self_discordance.pdf>
+Package pdftex.def Info: figures/rq1_self_discordance.pdf  used on input line 25.
+(pdftex.def)             Requested size: 243.91125pt x 191.41109pt.
+
+Underfull \vbox (badness 5331) has occurred while \output is active []
+
+<figures/rq1_per_band_coherence.pdf, id=213, 236.22754pt x 164.3396pt>
+File: figures/rq1_per_band_coherence.pdf Graphic file (type pdf)
+<use figures/rq1_per_band_coherence.pdf>
+Package pdftex.def Info: figures/rq1_per_band_coherence.pdf  used on input line 34.
+(pdftex.def)             Requested size: 243.91125pt x 169.69043pt.
+<figures/rq1_yearly_discordance.pdf, id=217, 235.51488pt x 170.3541pt>
+File: figures/rq1_yearly_discordance.pdf Graphic file (type pdf)
+<use figures/rq1_yearly_discordance.pdf>
+Package pdftex.def Info: figures/rq1_yearly_discordance.pdf  used on input line 43.
+(pdftex.def)             Requested size: 243.91125pt x 176.43623pt.
+ [4 <./figures/rq1_discordance_distribution.pdf> <./figures/rq1_self_discordance.pdf> <./figures/rq1_per_band_coherence.pdf>]
+Underfull \vbox (badness 2503) has occurred while \output is active []
+
+
+Overfull \hbox (1.11452pt too wide) in paragraph at lines 107--121
  [][] 
  []
 
 
-Underfull \hbox (badness 1052) in paragraph at lines 93--93
+Underfull \hbox (badness 1052) in paragraph at lines 121--121
 []\OT1/ptm/m/n/9 (+20) Table 4: |Per-band PC@10 and PC-lift@10 ver-sus the band-
  []
 
-[4])
-Underfull \hbox (badness 2478) in paragraph at lines 124--29
+<figures/rq4_paired_win_rates.pdf, id=304, 232.13756pt x 438.95996pt>
+File: figures/rq4_paired_win_rates.pdf Graphic file (type pdf)
+<use figures/rq4_paired_win_rates.pdf>
+Package pdftex.def Info: figures/rq4_paired_win_rates.pdf  used on input line 134.
+(pdftex.def)             Requested size: 243.91125pt x 461.24306pt.
+
+Underfull \vbox (badness 6725) has occurred while \output is active []
+
+ [5 <./figures/rq1_yearly_discordance.pdf>]
+Overfull \vbox (24.78444pt too high) has occurred while \output is active []
+
+<figures/rq4_paired_deltas.pdf, id=326, 235.7813pt x 438.95996pt>
+File: figures/rq4_paired_deltas.pdf Graphic file (type pdf)
+<use figures/rq4_paired_deltas.pdf>
+Package pdftex.def Info: figures/rq4_paired_deltas.pdf  used on input line 159.
+(pdftex.def)             Requested size: 243.91125pt x 454.1231pt.
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [6 <./figures/rq4_paired_win_rates.pdf>])
+Underfull \hbox (badness 2478) in paragraph at lines 166--29
 []\OT1/ptm/m/n/10 (+20) Together with RQ2's co-her-ence pre-mium, this null
  []
 
-(./sections/06-limitations.tex) (./sections/07-conclusion.tex [5]) (./ijcai26.bbl) (./sections/08-appendix.tex [6
+(./sections/06-limitations.tex) (./sections/07-conclusion.tex [7 <./figures/rq4_paired_deltas.pdf>]) (./ijcai26.bbl) [8
 
-]
-
-pdfTeX warning: pdflatex (file ./figures/rq1_self_discordance.pdf): PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
-<figures/rq1_self_discordance.pdf, id=258, 714.36337pt x 316.72751pt>
-File: figures/rq1_self_discordance.pdf Graphic file (type pdf)
-<use figures/rq1_self_discordance.pdf>
-Package pdftex.def Info: figures/rq1_self_discordance.pdf  used on input line 11.
-(pdftex.def)             Requested size: 505.89pt x 224.29814pt.
-
-
-pdfTeX warning: pdflatex (file ./figures/rq1_discordance_distribution.pdf): PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
-<figures/rq1_discordance_distribution.pdf, id=259, 569.82338pt x 317.80174pt>
-File: figures/rq1_discordance_distribution.pdf Graphic file (type pdf)
-<use figures/rq1_discordance_distribution.pdf>
-Package pdftex.def Info: figures/rq1_discordance_distribution.pdf  used on input line 18.
-(pdftex.def)             Requested size: 505.89pt x 282.1492pt.
-
-
-pdfTeX warning: pdflatex (file ./figures/rq1_per_band_coherence.pdf): PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
-<figures/rq1_per_band_coherence.pdf, id=260, 569.82338pt x 317.80174pt>
-File: figures/rq1_per_band_coherence.pdf Graphic file (type pdf)
-<use figures/rq1_per_band_coherence.pdf>
-Package pdftex.def Info: figures/rq1_per_band_coherence.pdf  used on input line 25.
-(pdftex.def)             Requested size: 505.89pt x 282.1492pt.
-
-
-pdfTeX warning: pdflatex (file ./figures/rq1_yearly_discordance.pdf): PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
-<figures/rq1_yearly_discordance.pdf, id=263, 567.1571pt x 315.9947pt>
-File: figures/rq1_yearly_discordance.pdf Graphic file (type pdf)
-<use figures/rq1_yearly_discordance.pdf>
-Package pdftex.def Info: figures/rq1_yearly_discordance.pdf  used on input line 32.
-(pdftex.def)             Requested size: 505.89pt x 281.87085pt.
-
-
-pdfTeX warning: pdflatex (file ./figures/rq4_paired_deltas.pdf): PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
-<figures/rq4_paired_deltas.pdf, id=264, 1580.35059pt x 334.90118pt>
-File: figures/rq4_paired_deltas.pdf Graphic file (type pdf)
-<use figures/rq4_paired_deltas.pdf>
-Package pdftex.def Info: figures/rq4_paired_deltas.pdf  used on input line 39.
-(pdftex.def)             Requested size: 505.89pt x 107.20122pt.
-
-
-pdfTeX warning: pdflatex (file ./figures/rq4_paired_win_rates.pdf): PDF inclusion: found PDF version <1.7>, but at most version <1.5> allowed
-<figures/rq4_paired_win_rates.pdf, id=265, 1581.89198pt x 334.90118pt>
-File: figures/rq4_paired_win_rates.pdf Graphic file (type pdf)
-<use figures/rq4_paired_win_rates.pdf>
-Package pdftex.def Info: figures/rq4_paired_win_rates.pdf  used on input line 46.
-(pdftex.def)             Requested size: 505.89pt x 107.09901pt.
-) [7
-
-
-] [8 <./figures/rq1_self_discordance.pdf> <./figures/rq1_discordance_distribution.pdf
-
-pdfTeX warning: pdflatex (file ./figures/rq1_discordance_distribution.pdf): PDF inclusion: multiple pdfs with page group included in a single page
->] [9 <./figures/rq1_per_band_coherence.pdf> <./figures/rq1_yearly_discordance.pdf
-
-pdfTeX warning: pdflatex (file ./figures/rq1_yearly_discordance.pdf): PDF inclusion: multiple pdfs with page group included in a single page
->] [10 <./figures/rq4_paired_deltas.pdf> <./figures/rq4_paired_win_rates.pdf
-
-pdfTeX warning: pdflatex (file ./figures/rq4_paired_win_rates.pdf): PDF inclusion: multiple pdfs with page group included in a single page
->] (./ijcai26.aux)
+] (./ijcai26.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
  ***********
 Package rerunfilecheck Info: File `ijcai26.out' has not changed.
-(rerunfilecheck)             Checksum: 3626B8AD1921A295D1B6FFD8FF705250;6672.
+(rerunfilecheck)             Checksum: B1FD6B4D9D0E4DD7C12AC5A7ECAD1BE5;6519.
  ) 
 Here is how much of TeX's memory you used:
- 14154 strings out of 474222
- 227223 string characters out of 5748733
- 1961975 words of memory out of 5000000
- 35836 multiletter control sequences out of 15000+600000
- 596571 words of font info for 255 fonts, out of 8000000 for 9000
+ 14150 strings out of 474222
+ 227012 string characters out of 5748733
+ 1958975 words of memory out of 5000000
+ 35832 multiletter control sequences out of 15000+600000
+ 596809 words of font info for 259 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 80i,19n,82p,1366b,564s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 80i,19n,82p,1366b,560s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on ijcai26.pdf (10 pages, 691641 bytes).
+Output written on ijcai26.pdf (8 pages, 332239 bytes).
 PDF statistics:
- 389 PDF objects out of 1000 (max. 8388607)
- 330 compressed objects within 4 object streams
- 74 named destinations out of 1000 (max. 500000)
- 63295 words of extra memory for PDF output out of 74296 (max. 10000000)
+ 455 PDF objects out of 1000 (max. 8388607)
+ 361 compressed objects within 4 object streams
+ 71 named destinations out of 1000 (max. 500000)
+ 63287 words of extra memory for PDF output out of 74296 (max. 10000000)
 
