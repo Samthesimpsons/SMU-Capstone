@@ -439,12 +439,9 @@ def _is_partial_year(coverage: dict[str, Any]) -> bool:
     return (last.month, last.day) != (12, 31)
 
 
-def load_rq2_artefacts(rq2_directory: Path) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Load the RQ2 coefficients dataframe and the run summary dict."""
-    coefficients = pd.read_csv(rq2_directory / "coefficients.csv")
-    with open(rq2_directory / "summary.json") as fh:
-        rq2_summary = json.load(fh)
-    return coefficients, rq2_summary
+def load_rq2_artefacts(rq2_directory: Path) -> pd.DataFrame:
+    """Load the RQ2 coefficients dataframe."""
+    return pd.read_csv(rq2_directory / "coefficients.csv")
 
 
 _RQ2_DISPLAY_ORDER: list[str] = [
@@ -497,7 +494,6 @@ def style_rq2_coefficient_table(coefficients: pd.DataFrame) -> pd.DataFrame:
 
 def plot_rq2_forest(
     coefficients: pd.DataFrame,
-    rq2_summary: dict[str, Any],
     save_path: Path | None = None,
 ) -> None:
     """Forest plot of every RQ2 regression coefficient with 95% CIs in pp."""
@@ -997,7 +993,7 @@ def export_figures_as_pdf(
 ) -> list[Path]:
     """Render every findings figure to PDF under `output_directory` and return the written paths."""
     output_directory.mkdir(parents=True, exist_ok=True)
-    coefficients, rq2_summary = load_rq2_artefacts(paths.rq2_directory)
+    coefficients = load_rq2_artefacts(paths.rq2_directory)
     rq3_per_band_summary, pi_series = build_rq3_per_band_summary(
         paths.rq3_panel_directory, eda_summary
     )
@@ -1025,7 +1021,7 @@ def export_figures_as_pdf(
         ),
         (
             "rq2_coefficient_forest.pdf",
-            lambda p: plot_rq2_forest(coefficients, rq2_summary, save_path=p),
+            lambda p: plot_rq2_forest(coefficients, save_path=p),
         ),
         (
             "rq3_per_band_pc.pdf",

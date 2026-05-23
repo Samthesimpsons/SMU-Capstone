@@ -32,7 +32,6 @@ class CustomerProfile(BaseModel):
     risk_band: int | None
     risk_band_is_predicted: bool
     customer_type: str | None
-    investment_capacity: str | None
 
 
 class EvaluationResult(BaseModel):

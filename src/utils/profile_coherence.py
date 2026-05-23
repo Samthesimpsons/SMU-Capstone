@@ -205,9 +205,6 @@ def build_customer_profile_lookup(
             risk_band=risk_band,
             risk_band_is_predicted=is_predicted,
             customer_type=_normalise_optional_string(row.get("customerType")),
-            investment_capacity=_normalise_optional_string(
-                row.get("investmentCapacity")
-            ),
         )
     return profiles
 
