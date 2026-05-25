@@ -5,19 +5,19 @@
 \label{sec:method:pck}
 
 \subsubsection{Ordinal band scale}
-Customers and assets share the same 4-point ordinal scale, running from Conservative (0) through Income (1) and Balanced (2) to Aggressive (3). The customer band $b_u$ is taken from FAR-Trans's \texttt{riskLevel} field, with a flag distinguishing declared values from regression-imputed \texttt{Predicted\_*} ones. Customers whose entry is \texttt{Not\_Available} or missing are excluded. The asset band $b_i$ follows the hierarchical rule in Section~\ref{sec:setup:bandassignment}.
+Customers and assets share the same 4-point ordinal scale, running from Conservative (0) through Income (1) and Balanced (2) to Aggressive (3). The customer band $b_u$ is taken from FAR-Trans's \texttt{riskLevel} field. Both declared values and regression-imputed \texttt{Predicted\_*} entries are mapped to the same ordinal scale; customers whose entry is \texttt{Not\_Available} or missing are excluded from all coherence computations. The asset band $b_i$ follows the hierarchical rule in Section~\ref{sec:setup:bandassignment}.
 
 \subsubsection{Pairwise discordance}
 \begin{equation}
 d(u, i) = |b_u - b_i| \in \{0, 1, 2, 3\}.
 \end{equation}
-A recommendation is \emph{profile-coherent} iff $d \leq 1$. The strict variant $d = 0$ appears only as a sensitivity row.
+A recommendation is \emph{profile-coherent} iff $d \leq 1$. The tolerance of $\pm 1$ band reflects MiFID II's adjacency allowance for borderline suitability; Section~\ref{sec:limitations} discusses this design choice.
 
 \subsubsection{Aggregation}
 \begin{equation}
 \text{PC@}k(u) = \frac{1}{k} \left|\{ i \in \text{top}_k(u) : d(u, i) \leq 1 \}\right|.
 \end{equation}
-Two implementation rules close the definition. First, recommenders returning fewer than $k$ items are scored on what they returned. Second, customers with $b_u = \emptyset$ are dropped from the aggregate. Per-split PC@$k$ is the unweighted mean across eligible customers and the headline numerics average over all splits.
+Two implementation rules complete the definition. First, recommenders returning fewer than $k$ items use the actual number of items returned as the denominator. Second, customers with $b_u = \emptyset$ are dropped from the aggregate. Per-split PC@$k$ is the unweighted mean across eligible customers and the headline numerics average over all splits.
 
 \subsubsection{Band-conditional random baseline}
 The closed-form expectation of PC@$k$ under a uniformly random recommender for band $b$ is given by
@@ -40,14 +40,14 @@ Lift $> 1$ beats the band-conditional random rate, while lift $= 1$ matches it. 
 LightGCN is the backbone: a differentiable loss with per-customer embeddings lets us attach the coherence margin to the BPR objective. Random Forest is not extended as its objective uses asset-level technical indicators only and carries no customer signal.
 
 \subsubsection{Stratified architecture}
-We train four band-stratified sub-models, one per declared MiFID risk band. At inference, each customer is routed to the sub-model for their declared band.
+We train four band-stratified sub-models, one per declared MiFID risk band. Each sub-model's training graph contains only the interactions of customers assigned to that band. At inference, each customer is routed to the sub-model matching their declared band; customers with no declared band default to the Balanced sub-model.
 
 \subsubsection{Profile-coherent margin loss}
-BPR samples a positive item from observed Buys and a negative item uniformly. We add a margin term pushing the score of a discordant draw below that of a coherent draw:
+BPR samples a positive item from observed Buys and a negative item uniformly. Independently of the BPR sampling, we add a second margin term that samples one coherent asset $i_c$ (satisfying $d(u, i_c) \leq 1$) and one discordant asset $i_d$ (satisfying $d(u, i_d) > 1$) from the sub-model's asset universe, and pushes the coherent score above the discordant score:
 \begin{equation}
 \mathcal{L}_{\text{coh}}(u) = \text{softplus}\!\left(s(u, i_d) - s(u, i_c)\right),
 \end{equation}
-Here $s(u, i)$ is the LightGCN inner-product score between customer $u$ and asset $i$. A coherent draw $i_c$ satisfies $d(u, i_c) \leq 1$ and a discordant draw $i_d$ satisfies $d(u, i_d) > 1$.
+where $s(u, i)$ is the LightGCN inner-product score between customer $u$ and asset $i$.
 
 \subsubsection{Total loss}
 \begin{equation}

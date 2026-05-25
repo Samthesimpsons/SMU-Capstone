@@ -4,7 +4,7 @@
 \subsection{Dataset}
 \label{sec:setup:dataset}
 
-Beyond the headline counts already noted in Section~1, FAR-Trans~\cite{sanzcruzado:fartrans} additionally provides 159{,}136 Sell transactions, with the 806 assets split across stocks, bonds, and mutual funds, and daily closing prices spanning January 2018 to November 2022. The MiFID II \texttt{riskLevel} field used throughout this paper takes values in \{Conservative, Income, Balanced, Aggressive\}, with \texttt{Predicted\_*} variants flagging regression-imputed bands. In addition, customer profiles also carry \texttt{customerType} and \texttt{investmentCapacity}, which enter the RQ2 controls in Section~\ref{sec:setup:stats}.
+Beyond the headline counts already noted in Section~\ref{sec:intro}, FAR-Trans~\cite{sanzcruzado:fartrans} additionally provides 159{,}136 Sell transactions, with the 806 assets split across stocks, bonds, and mutual funds, and daily closing prices spanning January 2018 to November 2022. The MiFID II \texttt{riskLevel} field used throughout this paper takes values in \{Conservative, Income, Balanced, Aggressive\}, with \texttt{Predicted\_*} variants flagging regression-imputed bands. In addition, customer profiles also carry \texttt{customerType} and \texttt{investmentCapacity}, which enter the RQ2 controls in Section~\ref{sec:setup:stats}.
 
 \subsection{Asset Risk Band Assignment}
 \label{sec:setup:bandassignment}
@@ -22,12 +22,12 @@ The resulting asset-band distribution across (Conservative, Income, Balanced, Ag
 \subsection{Temporal Split Protocol}
 \label{sec:setup:splits}
 
-Evaluation uses 69 monthly temporal splits on a trading-day grid between August 2019 and April 2025. For each split, training is all Buys before \texttt{time\_point}, and the test window is $(\texttt{time\_point}, \texttt{test\_end}]$, deduplicated against training and filtered to the training-asset universe. Eligible customers have at least one interaction in both training and test, while eligible assets have prices on both endpoints. Per-split deltas are paired against the global LightGCN baseline.
+Evaluation uses 69 monthly temporal splits on a trading-day grid between August 2019 and May 2022. For each split, training is all Buys before \texttt{time\_point}, and the test window is $(\texttt{time\_point}, \texttt{test\_end}]$, deduplicated against training and filtered to the training-asset universe. Eligible customers have at least one interaction in both training and test, while eligible assets have prices on both endpoints. In RQ4 (Section~\ref{sec:results:rq4}), per-split metric deltas are paired against the global LightGCN baseline to quantify the effect of each intervention component.
 
 \subsection{Baselines and Hyperparameter Grids}
 \label{sec:setup:baselines}
 
-Table~\ref{tab:baseline-grids} reports the search grids and fixed values for the two FAR-Trans baselines. Both grids are swept with Ray Tune, with LightGCN tuned on average nDCG@10 and Random Forest on average ROI@10 across the 69 splits. Best-trial values are reported in the appendix.
+Table~\ref{tab:baseline-grids} reports the search grids and fixed values for the two FAR-Trans baselines. Both grids are swept with Ray Tune, with LightGCN tuned on average nDCG@10 and Random Forest on average ROI@10 across the 69 splits. Best-trial hyperparameters are available in the project repository (Section~\ref{sec:setup:reproducibility}).
 
 \begin{table}[t]
 \centering
@@ -80,7 +80,7 @@ r ={}& \beta_0 + \beta_1 \cdot \text{is\_coherent} \\
     &{}+ \varepsilon.
 \end{split}
 \end{equation}
-where $r = (p_{\text{end}} - p_{\text{start}})/p_{\text{start}}$ is the 6-month realised return, trade-date and end prices are matched by backward-asof (7-day tolerance, rows over a week dropped), and \texttt{is\_coherent} is binary.
+where $r = (p_{\text{end}} - p_{\text{start}})/p_{\text{start}}$ is the 6-month realised return as a decimal fraction (e.g., $r = 0.03$ means a 3 percentage-point gain), \texttt{is\_coherent} is binary ($d \leq 1$), and prices are matched via a backward-nearest join: each transaction's start price is the most recent close price on or before the trade date, and the end price is the most recent close price on or before the date six months later. Transactions without a price match within 7 days at either endpoint are dropped.
 
 \subsection{Reproducibility}
 \label{sec:setup:reproducibility}

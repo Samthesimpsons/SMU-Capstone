@@ -8,13 +8,13 @@ We characterise discordance in four slices, starting from the pooled transaction
 \begin{enumerate}
     \item 18.6\% violate the declared band by two or more steps.
     \item 81.4\% are coherent, of which 34.1\% strictly ($d = 0$).
-    \item Mean discordance is 0.874 bands, so the typical violation is a one-band miss.
+    \item Mean discordance is 0.874 bands across all scoreable Buys, indicating that when mismatches occur they are usually a single band step.
 \end{enumerate}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{figures/rq1_discordance_distribution.pdf}
-    \caption{Distribution of pairwise discordance $d$ over 228{,}241 scoreable Buys. The shape is heavy-tailed, with the typical violation being a one-band miss.}
+    \caption{Distribution of pairwise discordance $d$ over 228{,}241 scoreable Buys. Most mass sits at $d \leq 1$ (coherent), with non-negligible density at $d \geq 2$ (discordant).}
     \label{fig:rq1-dist}
 \end{figure}
 
@@ -27,7 +27,7 @@ The pooled rate cannot tell us whether these violations are i.i.d.\ transaction-
     \label{fig:rq1-self}
 \end{figure}
 
-If the trait is customer-level, the next question is which customers carry it. Coherence per declared band is U-shaped (Figure~\ref{fig:rq1-per-band}): Conservative at 45.1\% (reach for yield), Aggressive at 56.2\% (regression toward safer assets), with the two centre bands at $\sim$90\%. The two ordinal extremes carry most of the mismatch while the centre bands are nearly fully coherent, which corroborates the bimodality finding from the customer slice.
+If the trait is customer-level, the next question is which customers carry it. Coherence per declared band is U-shaped (Figure~\ref{fig:rq1-per-band}): Conservative at 45.1\% (possibly reflecting a ``reach for yield'' tendency), Aggressive at 56.2\% (possibly reflecting a regression toward safer assets), with the two centre bands at $\sim$90\%. The two ordinal extremes carry most of the mismatch while the centre bands are nearly fully coherent, which corroborates the bimodality finding from the customer slice.
 
 \begin{figure}[H]
     \centering
@@ -74,14 +74,14 @@ Intercept                                & $-0.0471$ & $0.0141$ & $[-0.0746,\; -
 \label{tab:rq2-full}
 \end{table*}
 
-Coherent Buys earn $+2.94$ pp higher 6-month realised return than discordant ones, conditional on volatility, segment, and year. The positive sign with $p < 10^{-12}$ observationally falsifies the prior that regulatory coherence imposes a return tax. The raw slice gap is $+3.31$ pp, so controls absorb only $\sim$0.4 pp ($\sim$11\% of the unconditional gap). This implies that coherence is not a volatility, segment, or year confound. However, it is important to note that unobserved confounders (financial literacy, advisor channel, account constraints) are not ruled out.
+Coherent Buys earn $+2.94$ percentage points (pp) higher 6-month realised return than discordant ones, conditional on volatility, segment, and year. The positive sign with $p < 10^{-12}$ provides strong evidence against the prior that regulatory coherence imposes a return tax. The raw slice gap is $+3.31$ pp, so controls absorb only $\sim$0.4 pp ($\sim$11\% of the unconditional gap). This implies that coherence is not a volatility, segment, or year confound. However, it is important to note that unobserved confounders (financial literacy, advisor channel, account constraints) are not ruled out.
 
 The volatility coefficient is $-10.3$ pp per unit, consistent with low-volatility outperformance over 2019 to 2022 and the 2022 rate shock that hit high-beta names. All four year dummies reject $H_0$: 2020 strongly positive (COVID rebound) and 2022 negative (Fed-hike bond drawdown). All four \texttt{customerType} dummies fail to reject $H_0$: segmentation contributes no detectable return signal, and together with RQ1's bimodality it does not capture the persistent customer-level discordance trait either.
 
 \subsection{RQ3: Both Baselines Under-Serve at Least One Band}
 \label{sec:results:rq3}
 
-At primary-metric optima (Table~\ref{tab:rq3-aggregate}), LightGCN wins ranking quality (nDCG 0.330, Recall 0.495, PC@10 0.794) but loses ROI ($-0.5$\%/mo). On the flip side, Random Forest wins ROI ($+1.4$\%/mo) but ranks near random on nDCG (0.019) and Recall (0.036). Both look fine on aggregate PC (LightGCN PC-lift $1.17\times$, Random Forest $1.06\times$), but the aggregate hides per-band failures.
+At primary-metric optima (Table~\ref{tab:rq3-aggregate}), LightGCN wins ranking quality (nDCG 0.330, Recall 0.495, PC@10 0.794) but loses ROI ($-0.5$\%/mo). Conversely, Random Forest wins ROI ($+1.4$\%/mo) but ranks near random on nDCG (0.019) and Recall (0.036). Both look fine on aggregate PC (LightGCN PC-lift $1.17\times$, Random Forest $1.06\times$), but the aggregate hides per-band failures.
 
 \begin{table}[H]
 \centering
@@ -127,7 +127,7 @@ By customer footprint, LightGCN under-serves the 19.7\% Conservative segment whi
 \subsection{RQ4: Stratification + PC-Loss Closes the Per-Band Deficit}
 \label{sec:results:rq4}
 
-PC-LightGCN (Section~\ref{sec:method:pclgcn}) addresses the RQ3 gap by routing each customer to a band-stratified sub-model and adding a coherence margin to the BPR objective. Table~\ref{tab:rq4-aggregate} reports aggregate metrics for the baseline LightGCN, the $\lambda = 0$ ablation (stratification only), and the $\lambda = 1$ treatment (stratification plus the coherence margin) over 69 splits. The treatment lifts PC@10 from $0.794$ to $0.918$, a $+12.4$ pp gain, and PC-lift from $1.17\times$ to $1.40\times$. Figure~\ref{fig:rq4-winrate} confirms this is not a split-averaging artefact: the treatment beats baseline PC@10 on every one of the 69 splits.
+PC-LightGCN (Section~\ref{sec:method:pclgcn}) addresses the RQ3 gap by routing each customer to a band-stratified sub-model and adding a coherence margin to the BPR objective. Table~\ref{tab:rq4-aggregate} reports aggregate metrics for the baseline LightGCN, the $\lambda = 0$ ablation (stratification only), and the $\lambda = 1$ treatment (stratification plus the coherence margin) over 69 splits. The treatment lifts PC@10 from $0.794$ to $0.918$, a $+12.4$ pp gain, and PC-lift from $1.17\times$ to $1.40\times$. Figure~\ref{fig:rq4-winrate} confirms this is not a split-averaging artefact: the treatment achieves a 100\% win rate on PC@10 across all 69 splits.
 
 \begin{figure}[H]
     \centering
@@ -152,7 +152,7 @@ $\lambda = 1$ & $0.309$ & $-0.007$ & $0.467$ & $0.918$ & $1.40\times$ \\
 \label{tab:rq4-aggregate}
 \end{table*}
 
-Because the treatment bundles two architectural changes, the $\lambda = 0$ ablation lets us attribute the $+12.4$ pp PC@10 gain to each piece. The paired per-split deltas in Figure~\ref{fig:rq4-deltas} read as follows. Stratification alone supplies $+2.7$ pp of PC@10, about a quarter of the full gain. The accompanying nDCG ($+0.002$, 57\% win rate), Recall ($+0.006$, 72\% win rate), and ROI ($-0.002$ pp/mo, 28\% win rate) movements sit close enough to zero that none of them registers as a real effect. Adding the PC-loss on top buys the remaining $+9.7$ pp of PC@10, the other three quarters, and wins it on every split. The cost is roughly $-2$ pp of nDCG and $-3$ pp of Recall, also lost on every split. Stratification is therefore the cheap component of the intervention, and the PC-loss carries the bulk of the gain at a measurable but bounded ranking cost.
+Because the treatment bundles two architectural changes, the $\lambda = 0$ ablation lets us attribute the $+12.4$ pp PC@10 gain to each piece. The paired per-split deltas in Figure~\ref{fig:rq4-deltas} read as follows. Stratification alone supplies $+2.7$ pp of PC@10, about a quarter of the full gain. The accompanying nDCG ($+0.002$, 57\% win rate), Recall ($+0.006$, 72\% win rate), and ROI ($-0.002$ pp/mo, 28\% win rate) movements sit close enough to zero that none of them registers as a real effect. Adding the PC-loss on top buys the remaining $+9.7$ pp of PC@10, three quarters of the total gain, winning it on every split. The cost is roughly $-2$ pp of nDCG and $-3$ pp of Recall, also lost on every split. Stratification is therefore the cheap component of the intervention, and the PC-loss carries the bulk of the gain at a measurable but bounded ranking cost.
 
 \begin{figure}[H]
     \centering
@@ -163,4 +163,4 @@ Because the treatment bundles two architectural changes, the $\lambda = 0$ ablat
 
 Aggregate ROI is essentially flat across all three trials. The paired ROI deltas in Figure~\ref{fig:rq4-deltas} are $-0.002$ pp/mo for both the stratification ablation and the full treatment against baseline, and a near-zero $+0.0001$ pp/mo for the PC-loss step on its own. The small ROI cost therefore lives in the stratification step rather than the coherence margin, and is too small to read off the aggregate row of Table~\ref{tab:rq4-aggregate}.
 
-Together with RQ2's coherence premium, this null aggregate-ROI effect indicates that the recommender can be made meaningfully more profile-coherent without giving up the return story, reframing coherence as an architectural choice rather than a post-hoc tradeoff: compliance becomes a training-time objective expressible as an ordinal distance on a customer-asset metric pair.
+Together with RQ2's coherence premium, this null aggregate-ROI effect indicates that the recommender can be made meaningfully more profile-coherent without giving up the return story. This reframes coherence as an architectural choice rather than a post-hoc tradeoff.
