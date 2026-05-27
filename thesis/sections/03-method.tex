@@ -5,7 +5,7 @@
 \label{sec:method:pck}
 
 \subsubsection{Ordinal band scale}
-Customers and assets share the same 4-point ordinal scale running from Conservative to Income to Balanced to Aggressive, coded 0 to 3. The customer band $b_u$ is taken from FAR-Trans's \texttt{riskLevel} field. FAR-Trans provides both declared values and regression-imputed \texttt{Predicted\_*} entries, and both are mapped to the same ordinal scale. Customers whose entry is \texttt{Not\_Available} or missing are excluded from all coherence computations. The asset band $b_i$ follows the hierarchical rule in Section~\ref{sec:setup:bandassignment}.
+Customers and assets share the same 4-point ordinal scale running from Conservative to Income to Balanced to Aggressive, encoded 0 to 3. The customer band $b_u$ is taken from FAR-Trans's \texttt{riskLevel} field. FAR-Trans provides both declared values and regression-imputed \texttt{Predicted\_*} entries, and both are mapped to the same ordinal scale. Customers whose entry is \texttt{Not\_Available} or missing are excluded from all coherence computations. The asset band $b_i$ follows the hierarchical rule in Section~\ref{sec:setup:bandassignment}.
 
 \subsubsection{Pairwise discordance}
 \begin{equation}
@@ -40,7 +40,7 @@ Lift $> 1$ beats the band-conditional random rate, while lift $= 1$ matches it. 
 We choose LightGCN as the backbone because its differentiable loss and per-customer embeddings allow us to attach a coherence margin directly to the BPR objective. Random Forest is not extended because it ranks assets by predicted return from technical indicators alone and carries no customer-level signal to condition on.
 
 \subsubsection{Stratified architecture}
-We train four band-stratified sub-models, one per declared MiFID risk band. Each sub-model's training graph contains only the interactions of customers assigned to that band. At inference, each customer is routed to the sub-model matching their declared band. Customers with no declared band default to the Balanced sub-model.
+We train four band-stratified sub-models, one per declared MiFID risk band (Figure~\ref{fig:architecture}). Each sub-model's training graph contains only the interactions of customers assigned to that band. At inference, each customer is routed to the sub-model matching their declared band. Customers with no declared band default to the Balanced sub-model.
 
 \subsubsection{Profile-coherent margin loss}
 BPR trains the model to score an asset the customer actually bought (the positive item) higher than a randomly sampled unobserved asset (the negative item). Independently of this BPR sampling, we add a second margin term that samples one coherent asset $i_c$ (satisfying $d(u, i_c) \leq 1$) and one discordant asset $i_d$ (satisfying $d(u, i_d) > 1$) from the sub-model's asset universe, and pushes the coherent score above the discordant score:

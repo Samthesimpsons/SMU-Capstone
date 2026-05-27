@@ -4,7 +4,7 @@
 \subsection{Dataset}
 \label{sec:setup:dataset}
 
-In addition to the Buy transactions and risk-band fields described in Sections~\ref{sec:intro} and~\ref{sec:method}, FAR-Trans~\cite{sanzcruzado:fartrans} provides 159{,}136 Sell transactions and daily closing prices spanning January 2018 to November 2022. Of the 29{,}090 retail customers, 28{,}770 (99.0\%) carry a declared or regression-imputed MiFID risk band; the remaining 320 are excluded from all coherence computations. Customer profiles also include \texttt{customerType} and \texttt{investmentCapacity}, both of which enter the RQ2 regression controls in Section~\ref{sec:setup:stats}.
+In addition to the Buy transactions and risk-band fields described in Sections~\ref{sec:intro} and~\ref{sec:method}, FAR-Trans~\cite{sanzcruzado2024fartransinvestmentdatasetfinancial} provides 159{,}136 Sell transactions and daily closing prices spanning January 2018 to November 2022. Of the 29{,}090 retail customers, 28{,}770 (99.0\%) carry a declared or regression-imputed MiFID risk band, and the remaining 320 are excluded from all coherence computations. Customer profiles also include \texttt{customerType} and \texttt{investmentCapacity}, both of which enter the RQ2 regression controls in Section~\ref{sec:setup:stats}.
 
 \subsection{Asset Risk Band Assignment}
 \label{sec:setup:bandassignment}
@@ -81,8 +81,3 @@ r ={}& \beta_0 + \beta_1 \cdot \text{is\_coherent} \\
 \end{split}
 \end{equation}
 where $r = (p_{\text{end}} - p_{\text{start}})/p_{\text{start}}$ is the 6-month realised return as a decimal fraction (e.g., $r = 0.03$ means a 3 percentage-point gain) and \texttt{is\_coherent} is binary ($d \leq 1$). Prices are matched via a backward-nearest join: the start price is the most recent close on or before the trade date, and the end price is the most recent close on or before the date six months later. Transactions without a price match within 7 days at either endpoint are dropped.
-
-\subsection{Reproducibility}
-\label{sec:setup:reproducibility}
-
-All code, configuration grids, and evaluation artefacts are available in the project repository at \url{https://github.com/Samthesimpsons/SMU-Capstone}.
