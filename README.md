@@ -11,8 +11,8 @@ A measurement framework for profile-aware financial asset recommendation on the 
 
 ## Paper and Findings
 
-- **Conference writeup**: LaTeX sources live in `submission/paper/`. `ijcai26.pdf` is the compiled output and `sections/` contains the per-section sources. Figures are loaded from `submission/paper/figures/`.
-- **Narrative findings**: `notebooks/findings.ipynb` walks through each research question (RQ1 to RQ4) with intermediate plots, tables, and design commentary. All renderers live in `src/analysis/findings.py`; the notebook's final cell re-exports every figure as a single-column PDF straight into `submission/paper/figures/`.
+- **Conference writeup**: LaTeX sources live in `thesis/`. `ijcai26.pdf` is the compiled output and `sections/` contains the per-section sources. Figures are loaded from `thesis/figures/`.
+- **Figure export**: `uv run poe figures` renders every findings figure (RQ1 to RQ4) as a single-column PDF into `thesis/figures/`. All renderers live in `src/analysis/findings.py`.
 
 This README is the engineering counterpart: project context, code architecture, reproduction instructions.
 
@@ -68,6 +68,7 @@ uv run poe eda                                                                # 
 uv run poe tune --splits-limit 2 --device cpu                                 # RQ1-RQ3 smoke test using cpu and small subset of data
 uv run poe stratify --splits-limit 2 --device cpu                             # RQ4 stratified PC-LightGCN smoke test
 uv run poe jlab                                                               # launch Jupyter Lab to open notebooks/findings.ipynb
+uv run poe figures                                                            # export all thesis figures as PDFs into thesis/figures/
 uv run poe lint                                                               # ruff linting
 uv run poe type                                                               # ty type checks
 uv run poe format                                                             # ruff format
@@ -83,13 +84,13 @@ uv run poe preprocess   # generate temporal evaluation splits to data/splits/
 uv run poe eda          # dataset audit -> outputs/eda/
 uv run poe tune         # RQ1-RQ3: baseline grid + decomposition + RQ2 + RQ3
 uv run poe stratify     # RQ4: stratified profile-coherent LightGCN
-uv run poe jlab         # open notebooks/findings.ipynb; the final cell exports paper-ready PDFs into submission/paper/figures/
+uv run poe figures      # export all thesis figures as single-column PDFs into thesis/figures/
 ```
 
-After the notebook export cell runs, rebuild the LaTeX paper to pick up the regenerated figures:
+After the figures export, rebuild the LaTeX paper to pick up the regenerated figures:
 
 ```sh
-cd submission/paper && latexmk -pdf ijcai26.tex
+cd thesis && latexmk -pdf ijcai26.tex
 ```
 
 > **Note**: the SLURM batch scripts described in [GPU Cluster](#gpu-cluster) are only relevant if you have access to the SMU GPU cluster. In that case, `sbatch scripts/tune.sh` and `sbatch scripts/stratify.sh` replace the corresponding `poe` tasks (`tune` and `stratify`).
