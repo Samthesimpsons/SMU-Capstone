@@ -118,8 +118,10 @@ def _transaction_discordance_summary(
 
 def _customer_self_discordance(
     annotated_transactions: pd.DataFrame,
-) -> dict[str, float | list[float] | list[int]]:
+) -> dict[str, float | list[float] | list[int] | None]:
     """Per-customer fraction of profile-discordant transactions, summarised as a histogram."""
+    from diptest import diptest
+
     valid = annotated_transactions.dropna(subset=["customer_band", "asset_band"])
     grouped = valid.groupby("customerID")
     discordant_share = grouped.apply(
@@ -135,14 +137,20 @@ def _customer_self_discordance(
             "fraction_fully_discordant": 0.0,
             "discordant_share_histogram_edges": histogram_edges,
             "discordant_share_histogram_counts": [0] * 10,
+            "hartigans_dip_statistic": None,
+            "hartigans_dip_p_value": None,
         }
     counts, _ = np.histogram(values, bins=np.array(histogram_edges))
+    dip_statistic, dip_p_value = diptest(values)
     return {
         "mean_discordant_share": float(values.mean()),
         "fraction_fully_coherent": float((values == 0.0).mean()),
         "fraction_fully_discordant": float((values == 1.0).mean()),
         "discordant_share_histogram_edges": histogram_edges,
         "discordant_share_histogram_counts": [int(count) for count in counts],
+        "hartigans_dip_statistic": float(dip_statistic),
+        "hartigans_dip_p_value": float(dip_p_value),
+        "number_of_banded_customers": int(values.size),
     }
 
 

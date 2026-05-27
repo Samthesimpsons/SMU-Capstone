@@ -5,6 +5,7 @@ description = "Profile-coherent financial asset recommendation: a measurement fr
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "diptest>=0.11.0",
     "matplotlib>=3.10.8",
     "numpy>=2.4.2",
     "pandas>=3.0.1",

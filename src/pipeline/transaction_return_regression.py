@@ -166,6 +166,7 @@ def _build_summary(
     *,
     panel: pd.DataFrame,
     coefficients: pd.DataFrame,
+    model_fit: Any,
     horizon_months: int,
     output_directory: Path,
 ) -> dict[str, Any]:
@@ -194,6 +195,9 @@ def _build_summary(
             else None
         ),
         "is_coherent_coefficient": coherent_coefficient,
+        "r_squared": float(model_fit.rsquared),
+        "r_squared_adjusted": float(model_fit.rsquared_adj),
+        "number_of_clusters": int(panel["customerID"].nunique()),
     }
 
 
@@ -202,7 +206,8 @@ def _print_headline(summary: dict[str, Any]) -> None:
     print(
         f"\nPanel: {summary['panel_rows']} transactions, "
         f"{summary['unique_customers']} unique customers, "
-        f"coherent share {summary['coherent_share']:.3f}"
+        f"coherent share {summary['coherent_share']:.3f}, "
+        f"R² {summary['r_squared']:.4f}, adj R² {summary['r_squared_adjusted']:.4f}"
     )
     print(
         f"Raw slice means: coherent {summary['mean_realised_return_coherent']:.4f}, "
@@ -253,6 +258,7 @@ def run_transaction_return_regression(
     summary = _build_summary(
         panel=panel,
         coefficients=coefficients,
+        model_fit=model_fit,
         horizon_months=horizon_months,
         output_directory=output_directory,
     )

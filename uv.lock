@@ -614,6 +614,26 @@ wheels = [
 ]
 
 [[package]]
+name = "diptest"
+version = "0.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "psutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5e/0b/92a00796fb3a7e0fd1aea26ebcacfd6282857789ea72e847662e5103b24e/diptest-0.11.0.tar.gz", hash = "sha256:cd74d61d4e2620aa4c40900b7ff0ff48b7517fd00871c9066f737ba4081b2f81", size = 88751, upload-time = "2026-04-24T15:02:30.192Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d3/d1/75575cb04d4852354492eb869e876ed31054be6f1dfaf7b3f0c53e92d369/diptest-0.11.0-cp313-cp313-macosx_13_0_arm64.whl", hash = "sha256:f192191bcd50d9ec715b5fb6b259a1fb136970e979b69ec0f2f47d419653a12b", size = 382114, upload-time = "2026-04-24T15:02:05.268Z" },
+    { url = "https://files.pythonhosted.org/packages/10/06/dbdbfaa2e80bb742fb12666091ed1a3bed61237842607efbb2866c64e603/diptest-0.11.0-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:c35497a46c727618004ab0a34ceb5e17b52d83487d87de3e3a103863f0b4d49e", size = 422010, upload-time = "2026-04-24T15:02:06.739Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/47/14ee6416a288abeb46f40836985d6e064b9c7c90005ed3146cdf3b7f7a81/diptest-0.11.0-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0c582ae71d4577faed5fc8487b03f9d8c00f80d6290f5455785fd1222d879b72", size = 238138, upload-time = "2026-04-24T15:02:08.666Z" },
+    { url = "https://files.pythonhosted.org/packages/04/a0/b95dbd5ed59ec2efaa16dac075b217706fa0296d97473508c78cea66aa38/diptest-0.11.0-cp313-cp313-win_amd64.whl", hash = "sha256:737a17bc806b0761684d2e2bbba7a83ec7f9d77b5bda3b2b613f59e0abba8256", size = 403545, upload-time = "2026-04-24T15:02:09.955Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/3f/9ac5ebe1fe0a653066e71e448ee02746ffd4377df8d5bfe7dc26b00365c1/diptest-0.11.0-cp314-cp314-macosx_13_0_arm64.whl", hash = "sha256:4c7aca12a559137395dd195e091eb4056d01f787a1861b97d20c609340d94bbe", size = 382253, upload-time = "2026-04-24T15:02:11.25Z" },
+    { url = "https://files.pythonhosted.org/packages/af/bd/acd2da0086aeab997da07b5ab5230e49a6113bb0bcf6b3097acf5c9285ef/diptest-0.11.0-cp314-cp314-macosx_13_0_x86_64.whl", hash = "sha256:ab5666183fd0051598ad1c7cca0e70d084efdc503245c9294bcf7cd4ad141b62", size = 422044, upload-time = "2026-04-24T15:02:12.414Z" },
+    { url = "https://files.pythonhosted.org/packages/08/87/4131ec4535edf36f6ef84ef379dd7cab7dcee227c10ecdc4f68826df0169/diptest-0.11.0-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1965173824566d873f6c7ecfcc7949b83f18880515488ecefd367bbbb7a01369", size = 238092, upload-time = "2026-04-24T15:02:14.123Z" },
+    { url = "https://files.pythonhosted.org/packages/25/46/2b4589cd82371e2ed69f351ef0384545ae46584bcf9fed4498c392844022/diptest-0.11.0-cp314-cp314-win_amd64.whl", hash = "sha256:15886ee258cf7ce94fd443e29984a732230972a2ffdfb4bebea3bd2cf42bbb85", size = 414689, upload-time = "2026-04-24T15:02:15.368Z" },
+]
+
+[[package]]
 name = "executing"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2709,6 +2729,7 @@ name = "smu-capstone"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "diptest" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
@@ -2736,6 +2757,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "diptest", specifier = ">=0.11.0" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.2" },
     { name = "pandas", specifier = ">=3.0.1" },

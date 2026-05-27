@@ -20,7 +20,7 @@ We characterise discordance in four slices, starting from the pooled transaction
     \label{fig:rq1-dist}
 \end{figure}
 
-The pooled rate cannot tell us whether these violations are i.i.d.\ transaction-level slips spread thinly across the customer base or a structural trait concentrated in a subset. Slicing by customer settles the question. The per-customer discordant share (Figure~\ref{fig:rq1-self}) is sharply bimodal, concentrating in the lowest and highest bins rather than clustering near the 19\% mean. More explicitly, 64.4\% of banded customers are fully coherent across every Buy and 17.2\% are fully discordant. An i.i.d.\ noise process cannot produce this shape, making discordance a persistent customer-level trait.
+The pooled rate cannot tell us whether these violations are i.i.d.\ transaction-level slips spread thinly across the customer base or a structural trait concentrated in a subset. Slicing by customer settles the question. The per-customer discordant share (Figure~\ref{fig:rq1-self}) is sharply bimodal, concentrating in the lowest and highest bins rather than clustering near the 18.6\% population mean. More explicitly, 64.4\% of banded customers are fully coherent across every Buy and 17.2\% are fully discordant. Hartigan's dip test on the 28{,}770 per-customer values rejects unimodality ($D = 0.086$, $p < 10^{-15}$), confirming that discordance is a persistent customer-level trait rather than i.i.d.\ transaction-level noise.
 
 \begin{figure}[H]
     \centering
@@ -74,11 +74,11 @@ Intercept                                & $-0.0471$ & $0.0141$ & $[-0.0746,\; -
 \texttt{C(year)[2022]}                   & $-0.0195$ & $0.0045$ & $[-0.0283,\; -0.0107]$ & $1.4 \times 10^{-5}$ \\
 \bottomrule
 \end{tabular}
-\caption{Full RQ2 OLS coefficient table on 208{,}029 priced Buys, cluster-robust SE on \texttt{customerID}. Reference cell: Inactive customer, 2018, $\texttt{asset\_volatility} = 0$, $\texttt{is\_coherent} = 0$.}
+\caption{Full RQ2 OLS coefficient table on 208{,}029 priced Buys, cluster-robust SE on \texttt{customerID}. Reference cell: Inactive \texttt{customerType} (the alphabetically first segment in FAR-Trans), year 2018, $\texttt{asset\_volatility} = 0$, $\texttt{is\_coherent} = 0$.}
 \label{tab:rq2-full}
 \end{table*}
 
-Coherent Buys earn $+2.94$ percentage points (pp) higher 6-month realised return than discordant ones, conditional on volatility, segment, and year. The positive sign with $p < 10^{-12}$ provides strong evidence against the prior that regulatory coherence imposes a return tax. The raw slice gap is $+3.31$ pp, so controls absorb only $\sim$0.4 pp ($\sim$11\% of the unconditional gap). This implies that coherence is not a volatility, segment, or year confound. However, it is important to note that unobserved confounders such as financial literacy, advisor channel, and account constraints are not ruled out.
+Coherent Buys earn $+2.94$ percentage points (pp) higher 6-month realised return than discordant ones, conditional on volatility, segment, and year. The positive sign with $p < 10^{-12}$ provides strong evidence against the prior that regulatory coherence imposes a return tax. The raw slice gap is $+3.31$ pp, so controls absorb only $\sim$0.4 pp ($\sim$11\% of the unconditional gap). This implies that coherence is not a volatility, segment, or year confound. However, it is important to note that unobserved confounders such as financial literacy, advisor channel, and account constraints are not ruled out. The model's adjusted $R^2$ is 0.051, meaning 95\% of return variance is driven by factors outside the specification; this is typical of cross-sectional return regressions where idiosyncratic price movements dominate. The low $R^2$ does not affect coefficient inference: valid hypothesis testing requires correctly specified standard errors, not high explanatory power, and the cluster-robust SEs account for within-customer correlation across the 27{,}873 customer clusters.
 
 The volatility coefficient is $-10.3$ pp per unit, consistent with low-volatility outperformance over 2019 to 2022 and the 2022 rate shock that hit high-beta names. All four year dummies reject $H_0$, reflecting distinct market regimes relative to the 2018 reference year. The 2019 coefficient captures the equity recovery from the late-2018 selloff, 2020 is the strongest at $+21.1$ pp driven by the post-COVID V-shaped rebound, and 2021 reflects continued recovery under accommodative monetary policy before late-2021 rate-hike expectations set in. The 2022 coefficient turns negative at $-2.0$ pp as aggressive Fed hikes triggered a broad fixed-income drawdown. All four \texttt{customerType} dummies fail to reject $H_0$, indicating that segmentation contributes no detectable return signal. Together with the bimodality found in RQ1, this suggests that customer type does not capture the persistent discordance trait either. The coherence premium therefore survives all controls we can measure, motivating the question of whether existing recommenders produce coherent lists at all.
 
@@ -89,20 +89,20 @@ With a confirmed return premium for coherent Buys, we now audit whether the two 
 
 RQ3 asks whether the two FAR-Trans baselines produce profile-coherent recommendations across all four risk bands. We begin by comparing their aggregate performance at primary-metric optima, summarised in Table~\ref{tab:rq3-aggregate}. LightGCN wins on ranking quality with nDCG@10 of 0.330, Recall@10 of 0.495, and PC@10 of 0.794, but loses on ROI@10 at $-0.5$\%/mo. Conversely, Random Forest wins on ROI@10 at $+1.4$\%/mo but ranks near random on nDCG@10 of 0.019 and Recall@10 of 0.036. Both appear adequate on aggregate PC@10, with LightGCN at $1.17\times$ lift and Random Forest at $1.06\times$, but the aggregate hides per-band failures.
 
-\begin{table}[H]
+\begin{table*}[!t]
 \centering
 \small
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-Model & nDCG@10 & ROI@10 & Recall@10 & PC@10 \\
+Model & nDCG@10 & ROI@10 & Recall@10 & PC@10 & PC-lift@10 \\
 \midrule
-LightGCN      & $0.330$ & $-0.005$ & $0.495$ & $0.794$ \\
-RF            & $0.019$ & $+0.014$ & $0.036$ & $0.667$ \\
+LightGCN      & $0.330$ & $-0.005$ & $0.495$ & $0.794$ & $1.17\times$ \\
+RF            & $0.019$ & $+0.014$ & $0.036$ & $0.667$ & $1.06\times$ \\
 \bottomrule
 \end{tabular}
-\caption{RQ3 aggregate metrics at primary-metric optima, averaged over 69 splits. ROI@10 is per-month.}
+\caption{RQ3 aggregate metrics at primary-metric optima, averaged over 69 splits. ROI@10 is per-month. PC-lift@10 is PC@10 divided by the band-conditional random baseline $\pi(b)$.}
 \label{tab:rq3-aggregate}
-\end{table}
+\end{table*}
 
 However, aggregate PC@10 averages across customer bands whose random baselines $\pi(b)$ vary from 0.35 to 0.78, so a single number can mask which bands are actually being served. Table~\ref{tab:per-band-rq3} decomposes PC@10 by declared band to expose these differences. Per-band lift moves $0.75 \to 1.13 \to 1.17 \to 1.35$ for LightGCN and $0.52 \to 0.70 \to 1.03 \to 1.88$ for Random Forest across Conservative~$\to$~Income~$\to$~Balanced~$\to$~Aggressive. For both, lift rises monotonically with the declared band: recommended assets skew higher-risk. LightGCN's range is flatter, which we attribute to its per-user embeddings shifting each customer's top-$k$ partly toward their tolerance window. Recall that Random Forest carries no customer signal.
 
@@ -128,7 +128,7 @@ Aggressive   & LightGCN & 25{,}367 & $0.35$ & $0.47$ & $1.35$ \\
 \label{tab:per-band-rq3}
 \end{table}
 
-By customer footprint, LightGCN under-serves the 19.7\% Conservative segment while Random Forest under-serves 60.9\% (Conservative and Income combined). Aggressive's high lift is partly mechanical: $\pi(\text{Aggressive}) = 0.35$ is the lowest band, so any model skewing higher-volatility clears that bar easily. Neither baseline has band labels or a band-aware loss, so per-band coherence is a passive byproduct of training rather than a controlled output.
+Measured against the full FAR-Trans customer base (28{,}770 banded customers), LightGCN under-serves the 19.7\% Conservative segment while Random Forest under-serves 60.9\% (Conservative and Income combined). Aggressive's high lift is partly mechanical: $\pi(\text{Aggressive}) = 0.35$ is the lowest band, so any model skewing higher-volatility clears that bar easily. Neither baseline has band labels or a band-aware loss, so per-band coherence is a passive byproduct of training rather than a controlled output.
 
 \subsection{RQ4: Stratification + PC-Loss Closes the Per-Band Deficit}
 \label{sec:results:rq4}
@@ -141,11 +141,30 @@ The headline result is that the $\lambda = 1$ treatment lifts PC@10 from 0.794 t
 
 Because the treatment bundles two architectural changes, the $\lambda = 0$ ablation lets us isolate how much each piece contributes to the $+12.42$ pp PC@10 gain. Stratification alone supplies $+2.75$ pp of PC@10, about a quarter of the full gain. Importantly, it does so at virtually no cost to the other metrics. The nDCG@10 delta is $+0.0022$ with a 56.5\% win rate, Recall@10 shifts by $+0.0063$ with a 72.5\% win rate, and ROI@10 moves by $-0.0019$ pp/mo with a 27.5\% win rate. All three deltas are small enough that none registers as a meaningful effect, making stratification the cheap component of the intervention.
 
-Adding the coherence margin on top buys the remaining $+9.68$ pp of PC@10, three quarters of the total, winning on every split. This larger gain comes at a measurable but bounded ranking cost of $-2.23$ pp of nDCG@10 and $-3.38$ pp of Recall@10, both lost on every split.
+Adding the coherence margin on top buys the remaining $+9.68$ pp of PC@10, roughly four-fifths of the total, winning on every split. This larger gain comes at a measurable but bounded ranking cost of $-2.23$ pp of nDCG@10 and $-3.38$ pp of Recall@10, both lost on every split.
 
 Aggregate ROI@10 is essentially flat across all three trials. The stratification ablation shifts ROI@10 by $-0.0019$ pp/mo with a 27.5\% win rate, while the full treatment shifts it by $-0.0018$ pp/mo with a 33.3\% win rate. The coherence margin step on its own contributes a near-zero $+0.0002$ pp/mo with a 58.0\% win rate. The small ROI cost therefore lives in the stratification step rather than the coherence margin, and is too small to distinguish from zero in Table~\ref{tab:rq4-aggregate}.
 
-Together with the coherence premium established in RQ2, this null aggregate-ROI effect indicates that the recommender can be made meaningfully more profile-coherent without giving up the return story. This reframes coherence as an architectural choice rather than a post-hoc tradeoff.
+Together with the coherence premium established in RQ2, this null aggregate-ROI effect indicates that the recommender can be made meaningfully more profile-coherent without giving up the return story.
+
+Table~\ref{tab:rq4-per-band} decomposes PC-lift@10 by declared band to trace how the intervention resolves the per-band deficit from RQ3. Conservative, which sat at $0.75\times$ under the baseline, climbs to $0.91\times$ under stratification alone but remains below the random baseline; only after adding the coherence margin does it cross to $1.19\times$. Aggressive exhibits a non-monotonic pattern: stratification alone reduces lift from $1.35\times$ to $1.17\times$, likely because the smaller Aggressive training graph yields lower-quality embeddings in isolation, but the coherence margin more than recovers the loss at $1.97\times$. Income and Balanced, already above-random under the baseline, improve modestly without being sacrificed. Under $\lambda = 1$, all four bands clear the random baseline for the first time.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+Band & Baseline & $\lambda = 0$ & $\lambda = 1$ \\
+\midrule
+Conservative & $0.75\times$ & $0.91\times$ & $1.19\times$ \\
+Income       & $1.13\times$ & $1.20\times$ & $1.26\times$ \\
+Balanced     & $1.17\times$ & $1.22\times$ & $1.28\times$ \\
+Aggressive   & $1.35\times$ & $1.17\times$ & $1.97\times$ \\
+\bottomrule
+\end{tabular}
+\caption{Per-band PC-lift@10 for the three RQ4 trials. Values above $1.00\times$ beat the band-conditional random baseline $\pi(b)$.}
+\label{tab:rq4-per-band}
+\end{table}
 
 \begin{table*}[!t]
 \centering

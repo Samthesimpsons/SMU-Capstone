@@ -861,6 +861,90 @@ def style_rq4_paired_table(paired_table: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def build_rq4_per_band_summary(
+    rq4_baseline_directory: Path,
+    rq4_results_directory: Path,
+    eda_summary: dict[str, Any],
+    customer_profiles: dict[str, Any],
+    asset_risk_classes: dict[str, int],
+) -> pd.DataFrame:
+    """Per-band PC-lift@10 for all three RQ4 trials (baseline, lambda=0, lambda=1)."""
+    trial_paths = {
+        "Baseline": rq4_baseline_directory / "recommendations.parquet",
+        r"$\lambda{=}0$": rq4_results_directory
+        / "stratified_lambda_0.0/recommendations.parquet",
+        r"$\lambda{=}1$": rq4_results_directory
+        / "stratified_lambda_1.0/recommendations.parquet",
+    }
+    pi_series = _compute_pi_series(eda_summary)
+
+    customer_band_lookup: dict[str, str] = {
+        customer_id: RISK_BAND_NAMES[profile.risk_band]
+        for customer_id, profile in customer_profiles.items()
+        if profile.risk_band is not None
+    }
+    rows: list[dict[str, Any]] = []
+    for trial_label, parquet_path in trial_paths.items():
+        recommendations = pd.read_parquet(parquet_path)
+        recommendations["customer_band"] = recommendations["customer_id"].map(
+            customer_band_lookup
+        )
+        recommendations["asset_band"] = recommendations["asset_id"].map(
+            asset_risk_classes
+        )
+        recommendations["customer_band_num"] = recommendations["customer_id"].map(
+            lambda cid, profiles=customer_profiles: (
+                profiles[cid].risk_band
+                if cid in profiles and profiles[cid].risk_band is not None
+                else None
+            )
+        )
+        recommendations = recommendations.dropna(
+            subset=["customer_band", "asset_band", "customer_band_num"]
+        )
+        recommendations["is_coherent"] = (
+            recommendations["customer_band_num"] - recommendations["asset_band"]
+        ).abs() <= 1
+
+        per_customer_split = (
+            recommendations.groupby(["split_index", "customer_id", "customer_band"])
+            .agg(pc_at_10=("is_coherent", "mean"))
+            .reset_index()
+        )
+        per_band = (
+            per_customer_split.groupby("customer_band")
+            .agg(
+                mean_pc=("pc_at_10", "mean"),
+                n_observations=("pc_at_10", "count"),
+            )
+            .reindex(BANDS_ORDER)
+        )
+        per_band["pi_b"] = per_band.index.map(pi_series.to_dict())
+        per_band["lift"] = per_band["mean_pc"] / per_band["pi_b"]
+
+        for band_label in BANDS_ORDER:
+            band_row = per_band.loc[band_label]
+            rows.append(
+                {
+                    "trial": trial_label,
+                    "band": band_label,
+                    "pc_lift_at_10": round(float(band_row["lift"]), 3),
+                    "n_observations": int(band_row["n_observations"]),
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def style_rq4_per_band_summary(summary: pd.DataFrame) -> Any:
+    """Pivoted display of per-band PC-lift@10 across the three RQ4 trials."""
+    pivoted = summary.pivot(index="band", columns="trial", values="pc_lift_at_10")
+    pivoted = pivoted.reindex(index=BANDS_ORDER)
+    trial_order = ["Baseline", r"$\lambda{=}0$", r"$\lambda{=}1$"]
+    pivoted = pivoted[[col for col in trial_order if col in pivoted.columns]]
+    return pivoted.style.format("{:.2f}\\times")
+
+
 def plot_rq4_paired_deltas(
     paired_table: pd.DataFrame, save_path: Path | None = None
 ) -> None:

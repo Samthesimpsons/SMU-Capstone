@@ -68,7 +68,10 @@
       176,
       137,
       4995
-    ]
+    ],
+    "hartigans_dip_statistic": 0.086044,
+    "hartigans_dip_p_value": 0.0,
+    "number_of_banded_customers": 28770
   },
   "buy_coverage_by_year": {
     "2018": {

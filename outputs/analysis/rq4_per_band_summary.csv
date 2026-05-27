@@ -1,0 +1,13 @@
+trial,band,pc_lift_at_10,n_observations
+Baseline,Conservative,0.746,5348
+Baseline,Income,1.134,45142
+Baseline,Balanced,1.165,61181
+Baseline,Aggressive,1.346,25367
+$\lambda{=}0$,Conservative,0.909,5348
+$\lambda{=}0$,Income,1.202,45142
+$\lambda{=}0$,Balanced,1.216,61181
+$\lambda{=}0$,Aggressive,1.171,25367
+$\lambda{=}1$,Conservative,1.193,5348
+$\lambda{=}1$,Income,1.26,45142
+$\lambda{=}1$,Balanced,1.284,61181
+$\lambda{=}1$,Aggressive,1.971,25367

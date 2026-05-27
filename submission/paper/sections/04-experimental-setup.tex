@@ -4,7 +4,7 @@
 \subsection{Dataset}
 \label{sec:setup:dataset}
 
-In addition to the Buy transactions and risk-band fields described in Sections~\ref{sec:intro} and~\ref{sec:method}, FAR-Trans~\cite{sanzcruzado:fartrans} provides 159{,}136 Sell transactions and daily closing prices spanning January 2018 to November 2022. Customer profiles also include \texttt{customerType} and \texttt{investmentCapacity}, both of which enter the RQ2 regression controls in Section~\ref{sec:setup:stats}.
+In addition to the Buy transactions and risk-band fields described in Sections~\ref{sec:intro} and~\ref{sec:method}, FAR-Trans~\cite{sanzcruzado:fartrans} provides 159{,}136 Sell transactions and daily closing prices spanning January 2018 to November 2022. Of the 29{,}090 retail customers, 28{,}770 (99.0\%) carry a declared or regression-imputed MiFID risk band; the remaining 320 are excluded from all coherence computations. Customer profiles also include \texttt{customerType} and \texttt{investmentCapacity}, both of which enter the RQ2 regression controls in Section~\ref{sec:setup:stats}.
 
 \subsection{Asset Risk Band Assignment}
 \label{sec:setup:bandassignment}
@@ -22,7 +22,7 @@ Each asset is assigned to one of the four MiFID risk bands by a three-step hiera
 \subsection{Temporal Split Protocol}
 \label{sec:setup:splits}
 
-Evaluation uses 69 monthly temporal splits on a trading-day grid between August 2019 and May 2022. For each split, the training set contains all Buys in $[0, \texttt{time\_point}]$ and the test set contains all Buys in $[\texttt{time\_point}, \texttt{test\_end}]$, deduplicated against training and filtered to the training-asset universe. Eligible customers have at least one interaction in both training and test, while eligible assets have prices on both endpoints. In RQ4 (Section~\ref{sec:results:rq4}), per-split metric deltas are paired against the global LightGCN baseline to quantify the effect of each intervention component.
+Evaluation uses 69 temporal splits on an evenly spaced trading-day grid between August 2019 and May 2022, yielding approximately biweekly split points. For each split, the training set contains all Buys in $[0, \texttt{time\_point}]$ and the test set contains all Buys in $[\texttt{time\_point}, \texttt{test\_end}]$, deduplicated against training and filtered to the training-asset universe. Eligible customers have at least one interaction in both training and test, while eligible assets have prices on both endpoints. In RQ4 (Section~\ref{sec:results:rq4}), per-split metric deltas are paired against the global LightGCN baseline to quantify the effect of each intervention component.
 
 \subsection{Baselines and Hyperparameter Grids}
 \label{sec:setup:baselines}
